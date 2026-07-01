@@ -1,19 +1,168 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Opay - Token Platform</title>
-    <!-- React ve Babel Başlatıcıları -->
+    <!-- Kararlı React ve Babel Bağlantıları -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- image_5.png Koyu Temasının Birebir Renk Kodları (CSS Olarak Gömdüm) -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0b1329; /* Orijinal Lacivert Arka Plan */
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mini-logo {
+            background: linear-gradient(135deg, #00b4d8 0%, #02c39a 100%);
+            color: white;
+            font-weight: 900;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        .brand-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 0.5px;
+        }
+        .lang-select {
+            background-color: #1a233d;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #cbd5e1;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+        }
+        .login-card {
+            background-color: #111a33; /* Tam olarak görseldeki kart rengi */
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        .main-logo {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #00b4d8 0%, #02c39a 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: 900;
+            margin: 0 auto 16px auto;
+            box-shadow: 0 10px 15px -3px rgba(0, 180, 216, 0.2);
+        }
+        .welcome-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            margin: 0 0 4px 0;
+        }
+        .tagline {
+            font-size: 12px;
+            color: #38bdf8;
+            font-weight: 500;
+            margin: 0 0 24px 0;
+            letter-spacing: 0.5px;
+        }
+        .input-group {
+            text-align: left;
+            margin-bottom: 16px;
+        }
+        .input-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+        .custom-input {
+            width: 100%;
+            background-color: #090f1f; /* Görseldeki koyu input rengi */
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            color: white;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .custom-input:focus {
+            border-color: #00b4d8;
+        }
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #00b4d8 0%, #02c39a 100%); /* Turkuaz-yeşil buton */
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+            box-shadow: 0 10px 15px -3px rgba(2, 195, 154, 0.2);
+            transition: opacity 0.2s;
+        }
+        .submit-btn:hover {
+            opacity: 0.95;
+        }
+        .switch-mode {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 24px;
+            cursor: pointer;
+        }
+        .switch-link {
+            color: #02c39a;
+            font-weight: 700;
+            margin-left: 4px;
+        }
+        .switch-link:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
-<body class="bg-[#0b1329] text-slate-200 m-0 p-0 font-sans min-h-screen flex flex-col justify-center">
+<body>
 
-    <div id="root"></div>
+    <div id="root" class="container"></div>
 
     <script type="text/babel">
         const { useState } = React;
@@ -23,203 +172,100 @@
           { code:"tr", flag:"🇹🇷", label:"Türkçe" },
           { code:"es", flag:"🇪🇸", label:"Español" },
           { code:"pt", flag:"🇧🇷", label:"Português (Brasil)" },
-          { code:"fr", flag:"🇫🇷", label:"Français" },
+          { code:"fr", font:"🇫🇷", label:"Français" },
           { code:"de", flag:"🇩🇪", label:"Deutsch" },
           { code:"ru", flag:"🇷🇺", label:"Русский" },
           { code:"ja", flag:"🇯🇵", label:"日本語" },
           { code:"ko", flag:"🇰🇷", label:"한국어" },
-          { code:"zh", flag:"🇨🇳", label:"简体中文" },
-          { code:"it", flag:"🇮🇹", label:"Italiano" },
-          { code:"id", flag:"🇮🇩", label:"Bahasa Indonesia" },
-          { code:"vi", flag:"🇻🇳", label:"Tiếng Việt" },
-          { code:"th", flag:"🇹🇭", label:"ไทย" },
-          { code:"hi", flag:"🇮🇳", label:"हिन्दी" },
-          { code:"ar", flag:"🇸🇦", label:"العربية" },
-          { code:"pl", flag:"🇵🇱", label:"Polski" },
+          { code:"zh", flag:"🇨🇳", label:"简体中文" }
         ];
-        const RTL = ["ar"];
 
         const D = {
           en:{
             login:"Sign In",register:"Register",username:"Username",email:"Email",password:"Password",
             confirmPw:"Confirm Password",noAcc:"Don't have an account?",haveAcc:"Already have an account?",
-            wrongPw:"Passwords do not match",adminTitle:"Admin Dashboard",searchUser:"Search username...",
-            userTh:"User",statusTh:"Status",actionsTh:"Actions",adjFor:"Adjust Balance for",
-            amtLbl:"Amount (USDT)",applyBtn:"Apply",cancelBtn:"Cancel",welcome:"Welcome back",tagline:"OPAY TOKEN Platform"
+            wrongPw:"Passwords do not match",welcome:"Welcome back",tagline:"OPAY TOKEN Platform"
           },
           tr:{
             login:"Giriş Yap",register:"Kayıt Ol",username:"Kullanıcı Adı",email:"E-posta",password:"Şifre",
             confirmPw:"Şifreyi Onayla",noAcc:"Hesabınız yok mu?",haveAcc:"Zaten hesabınız var mı?",
-            wrongPw:"Şifreler eşleşmiyor",adminTitle:"Yönetici Paneli",searchUser:"Kullanıcı adı ara...",
-            userTh:"Kullanıcı",statusTh:"Durum",actionsTh:"İşlemler",adjFor:"Bakiye Düzenle:",
-            amtLbl:"Miktar (USDT)",applyBtn:"Uygula",cancelBtn:"İptal",welcome:"Tekrar Hoş Geldiniz",tagline:"OPAY TOKEN Platformu"
+            wrongPw:"Şifreler eşleşmiyor",welcome:"Tekrar Hoş Geldiniz",tagline:"OPAY TOKEN Platformu"
           }
         };
 
         function App() {
-          const [lang, setLang] = useState("en"); // Orijinal görseldeki gibi varsayılan English
+          const [lang, setLang] = useState("en"); // Görseldeki gibi İngilizce varsayılan
           const [mode, setMode] = useState("login");
           const [user, setUser] = useState("");
           const [email, setEmail] = useState("");
           const [pw, setPw] = useState("");
           const [cpw, setCpw] = useState("");
-          const [isAuthed, setIsAuthed] = useState(false);
-          const [search, setSearch] = useState("");
-          const [adjUser, setAdjUser] = useState(null);
-          const [adjAmt, setAdjAmt] = useState("");
-          const [adjMsg, setAdjMsg] = useState("");
-          
-          const [mockUsers, setMockUsers] = useState([
-            { id: 1, name: "can_turkmen", email: "can@star-media.com", balance: "1500.00", status: "Active" },
-            { id: 2, name: "alex_99", email: "alex@opay.com", balance: "450.00", status: "Active" },
-            { id: 3, name: "somchai_th", email: "somchai@star-media.com", balance: "0.00", status: "Pending" }
-          ]);
 
           const T = (key) => D[lang]?.[key] || D["en"][key] || key;
-          const isRtl = RTL.includes(lang);
 
-          const handleAuth = (e) => {
+          const handleSubmit = (e) => {
             e.preventDefault();
-            if(mode === "register" && pw !== cpw) {
+            if (mode === "register" && pw !== cpw) {
               alert(T("wrongPw"));
               return;
             }
-            setIsAuthed(true);
-          };
-
-          const doAdj = () => {
-            if(!adjAmt || isNaN(adjAmt)) {
-              setAdjMsg("❌ Invalid amount");
-              return;
-            }
-            setMockUsers(mockUsers.map(u => u.name === adjUser ? { ...u, balance: parseFloat(adjAmt).toFixed(2) } : u));
-            setAdjMsg("✅ Balance updated!");
-            setTimeout(() => { setAdjUser(null); setAdjMsg(""); setAdjAmt(""); }, 1000);
+            alert("Sisteme giriş yapıldı (Simülasyon)");
           };
 
           return (
-            <div dir={isRtl ? "rtl" : "ltr"} class="w-full max-w-md mx-auto px-4 py-8">
-              
+            <div>
               {/* TOP BAR */}
-              <div class="flex justify-between items-center mb-8">
-                <div class="flex items-center gap-2">
-                  <div class="bg-gradient-to-tr from-[#00b4d8} to-[#00f5d4] text-white font-black px-2.5 py-1.5 rounded-lg text-sm shadow-md">OP</div>
-                  <span class="text-lg font-bold tracking-wider text-white">OPAY TOKEN</span>
+              <div class="top-bar">
+                <div class="brand">
+                  <div class="mini-logo">OP</div>
+                  <div class="brand-text">OPAY TOKEN</div>
                 </div>
-                <select value={lang} onChange={e => setLang(e.target.value)} class="bg-[#1a233d] border border-slate-700/50 rounded-lg px-2 py-1 text-xs font-semibold text-slate-300 outline-none cursor-pointer">
+                <select value={lang} onChange={e => setLang(e.target.value)} class="lang-select">
                   {LANGS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
                 </select>
               </div>
 
-              {!isAuthed ? (
-                /* DARK LOGIN CARD (image_5.png kopyası) */
-                <div class="bg-[#111a33] border border-slate-800/80 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
-                  
-                  {/* LOGO AREA */}
-                  <div class="flex flex-col items-center mb-6">
-                    <div class="w-16 h-16 bg-gradient-to-br from-[#00b4d8] to-[#02c39a] rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-cyan-500/10 mb-4">
-                      OP
+              {/* LOGIN CARD */}
+              <div class="login-card">
+                <div class="main-logo">OP</div>
+                <h2 class="welcome-text">{mode === "login" ? T("welcome") : T("register")}</h2>
+                <p class="tagline">{T("tagline")}</p>
+
+                <form onSubmit={handleSubmit}>
+                  <div class="input-group">
+                    <label class="input-label">{T("username")}</label>
+                    <input class="custom-input" placeholder="username" value={user} onChange={e=>setUser(e.target.value)} required />
+                  </div>
+
+                  {mode === "register" && (
+                    <div class="input-group">
+                      <label class="input-label">{T("email")}</label>
+                      <input type="email" class="custom-input" placeholder="email@example.com" value={email} onChange={e=>setEmail(e.target.value)} required />
                     </div>
-                    <h2 class="text-2xl font-bold text-white mb-1">{mode === "login" ? T("welcome") : T("register")}</h2>
-                    <p class="text-xs text-blue-400 font-medium tracking-wide">{T("tagline")}</p>
+                  )}
+
+                  <div class="input-group">
+                    <label class="input-label">{T("password")}</label>
+                    <input type="password" class="custom-input" placeholder="••••••••" value={pw} onChange={e=>setPw(e.target.value)} required />
                   </div>
 
-                  <form onSubmit={handleAuth} class="space-y-4">
-                    <div>
-                      <label class="block text-xs font-semibold text-slate-400 mb-1.5">{T("username")}</label>
-                      <input class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder="username" value={user} onChange={e=>setUser(e.target.value)} required />
+                  {mode === "register" && (
+                    <div class="input-group">
+                      <label class="input-label">{T("confirmPw")}</label>
+                      <input type="password" class="custom-input" placeholder="••••••••" value={cpw} onChange={e=>setCpw(e.target.value)} required />
                     </div>
+                  )}
 
-                    {mode === "register" && (
-                      <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1.5">{T("email")}</label>
-                        <input type="email" class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder="email@example.com" value={email} onChange={e=>setEmail(e.target.value)} required />
-                      </div>
-                    )}
+                  <button type="submit" class="submit-btn">
+                    {mode === "login" ? T("login") : T("register")}
+                  </button>
+                </form>
 
-                    <div>
-                      <label class="block text-xs font-semibold text-slate-400 mb-1.5">{T("password")}</label>
-                      <input type="password" class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder="••••••••" value={pw} onChange={e=>setPw(e.target.value)} required />
-                    </div>
-
-                    {mode === "register" && (
-                      <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1.5">{T("confirmPw")}</label>
-                        <input type="password" class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder="••••••••" value={cpw} onChange={e=>setCpw(e.target.value)} required />
-                      </div>
-                    )}
-
-                    <button type="submit" class="w-full bg-gradient-to-r from-[#00b4d8] to-[#02c39a] text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-cyan-500/20 hover:opacity-95 active:scale-[0.99] transition-all text-sm mt-2">
-                      {mode === "login" ? T("login") : T("register")}
-                    </button>
-                  </form>
-
-                  <p onClick={() => setMode(mode === "login" ? "register" : "login")} class="text-center text-xs text-slate-400 font-medium mt-6 cursor-pointer hover:text-white transition-colors">
-                    {mode === "login" ? T("noAcc") : T("haveAcc")} <span class="text-[#02c39a] font-bold ml-1 hover:underline">{mode === "login" ? "Sign up" : "Sign in"}</span>
-                  </p>
-                </div>
-              ) : (
-                /* ADMIN DASHBOARD (Dark Mode) */
-                <div class="bg-[#111a33] border border-slate-800/80 rounded-2xl p-6 shadow-2xl w-full max-w-3xl -mx-4 sm:mx-auto">
-                  <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                    <h2 class="text-lg font-bold text-white">{T("adminTitle")}</h2>
-                    <button onClick={() => setIsAuthed(false)} class="bg-rose-500/10 text-rose-400 font-bold px-3 py-1.5 rounded-lg text-xs hover:bg-rose-500/20 transition-colors">Sign Out</button>
-                  </div>
-
-                  <div class="mb-4">
-                    <input class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder={T("searchUser")} value={search} onChange={e => setSearch(e.target.value)} />
-                  </div>
-
-                  <div class="overflow-x-auto rounded-xl border border-slate-800">
-                    <table class="w-full text-left border-collapse bg-[#111a33]">
-                      <thead>
-                        <tr class="bg-[#090f1f] border-b border-slate-800 text-slate-400 font-semibold text-xs">
-                          <th class="p-3">{T("userTh")}</th>
-                          <th class="p-3">Balance</th>
-                          <th class="p-3">{T("statusTh")}</th>
-                          <th class="p-3 text-right">{T("actionsTh")}</th>
-                        </tr>
-                      </thead>
-                      <tbody class="divide-y divide-slate-800/60 text-xs text-slate-300">
-                        {mockUsers.filter(u => u.name.toLowerCase().includes(search.toLowerCase())).map(u => (
-                          <tr key={u.id} class="hover:bg-[#162240] transition-colors">
-                            <td class="p-3">
-                              <div class="font-bold text-white">@{u.name}</div>
-                              <div class="text-[10px] text-slate-500 mt-0.5">{u.email}</div>
-                            </td>
-                            <td class="p-3 font-bold text-emerald-400">{u.balance} USDT</td>
-                            <td class="p-3">
-                              <span class={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${u.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                                {u.status}
-                              </span>
-                            </td>
-                            <td class="p-3 text-right">
-                              <button onClick={() => { setAdjUser(u.name); setAdjAmt(u.balance); }} class="bg-cyan-500/10 text-cyan-400 px-2.5 py-1 rounded-md text-[11px] font-bold hover:bg-cyan-500/20 transition-colors">Edit</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* MODAL WINDOW (Dark Mode) */}
-              {adjUser && (
-                <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div class="bg-[#111a33] border border-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-                    <div class="font-bold text-white mb-4 text-base border-b border-slate-800 pb-2">{T("adjFor")} @{adjUser}</div>
-                    <div class="text-xs font-bold text-slate-400 mb-2">{T("amtLbl")}</div>
-                    <input type="number" step="0.01" class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-base text-white focus:outline-none focus:border-cyan-500 font-semibold" value={adjAmt} onChange={e=>setAdjAmt(e.target.value)} />
-                    {adjMsg && <div class={`text-xs font-medium text-center p-2 rounded-lg mt-3 ${adjMsg.startsWith('✅') ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>{adjMsg}</div>}
-                    <div class="flex gap-3 mt-5">
-                      <button onClick={doAdj} class="w-1/2 bg-gradient-to-r from-[#00b4d8] to-[#02c39a] text-white text-xs font-bold py-2.5 rounded-xl shadow-lg shadow-cyan-500/10">_{T("applyBtn")}</button>
-                      <button onClick={() => { setAdjUser(null); setAdjMsg(""); }} class="w-1/2 bg-slate-800 text-slate-300 text-xs font-bold py-2.5 rounded-xl hover:bg-slate-700">{T("cancelBtn")}</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
+                <p onClick={() => setMode(mode === "login" ? "register" : "login")} class="switch-mode">
+                  {mode === "login" ? T("noAcc") : T("haveAcc")}
+                  <span class="switch-link">{mode === "login" ? "Sign up" : "Sign in"}</span>
+                </p>
+              </div>
             </div>
           );
         }
