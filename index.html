@@ -1,770 +1,97 @@
-import { useState } from "react";
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Opay</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6;">
 
-// ─── LANGUAGES ───────────────────────────────────────────────────────────────
-const LANGS = [
-  { code:"en", flag:"🇺🇸", label:"English" },
-  { code:"tr", flag:"🇹🇷", label:"Türkçe" },
-  { code:"es", flag:"🇪🇸", label:"Español" },
-  { code:"pt", flag:"🇧🇷", label:"Português (Brasil)" },
-  { code:"fr", flag:"🇫🇷", label:"Français" },
-  { code:"de", flag:"🇩🇪", label:"Deutsch" },
-  { code:"ru", flag:"🇷🇺", label:"Русский" },
-  { code:"ja", flag:"🇯🇵", label:"日本語" },
-  { code:"ko", flag:"🇰🇷", label:"한국어" },
-  { code:"zh", flag:"🇨🇳", label:"简体中文" },
-  { code:"it", flag:"🇮🇹", label:"Italiano" },
-  { code:"id", flag:"🇮🇩", label:"Bahasa Indonesia" },
-  { code:"vi", flag:"🇻🇳", label:"Tiếng Việt" },
-  { code:"th", flag:"🇹🇭", label:"ไทย" },
-  { code:"hi", flag:"🇮🇳", label:"हिन्दी" },
-  { code:"ar", flag:"🇸🇦", label:"العربية" },
-  { code:"pl", flag:"🇵🇱", label:"Polski" },
-];
-const RTL = ["ar"];
+    <div id="root"></div>
 
-const D = {
-  en:{
-    login:"Login",register:"Register",username:"Username",email:"Email",password:"Password",
-    confirmPw:"Confirm Password",fullName:"Full Name",loginBtn:"Sign In",registerBtn:"Create Account",
-    withEmail:"Continue with Email",noAcc:"Don't have an account?",haveAcc:"Already have an account?",
-    signUp:"Sign up",signIn:"Sign in",selectLang:"Language",
-    welcomeBack:"Welcome back",createAcc:"Create your account",tagline:"OPAY TOKEN Platform",
-    errLogin:"Incorrect username/email or password.",errExists:"Username or email already registered.",
-    errFields:"Please fill in all fields.",errPwMatch:"Passwords do not match.",
-    errEmail:"Please enter a valid email address.",
-    okRegister:"Account created! You can now sign in.",
-    dashboard:"Dashboard",exchange:"Exchange",history:"History",admin:"Admin",logout:"Logout",
-    buyPrice:"Buy Price",sellPrice:"Sell Price",yourOpay:"Your OPAY Balance",yourUsdt:"Your USDT Balance",
-    lastUpdate:"last update",spread:"Fixed 2% spread",
-    chartTitle:"OPAY TOKEN Price Chart (Buy)",
-    startP:"Start",currentP:"Current",totalGain:"Total Gain",
-    platformInfo:"Platform Information",
-    iT1:"Secure Platform",iD1:"Trade only through this site",
-    iT2:"Continuously Growing Value",iD2:"Daily price set by the administrator",
-    iT3:"Instant Transactions",iD3:"Easy conversion between USDT and OPAY TOKEN",
-    iT4:"Fixed 2% Spread",iD4:"Transparent and fixed buy/sell difference",
-    exTitle:"Exchange",buyOpay:"▲ BUY OPAY",sellOpay:"▼ SELL OPAY",
-    opayBal:"OPAY Balance",usdtBal:"USDT Balance",
-    amtBuy:"Amount of OPAY to buy",amtSell:"Amount of OPAY to sell",
-    willGet:"You will receive",willPay:"You will pay (USDT)",willSell:"You will sell",willGetU:"You will receive (USDT)",
-    minWarn:"⚠️ Minimum withdrawal is 10 USDT",
-    btnBuy:"✅ BUY OPAY",btnSell:"💱 SELL OPAY",
-    errUsdt:"Insufficient USDT balance.",errOpay:"Insufficient OPAY balance.",
-    errAmt:"Please enter a valid amount.",errMinSell:"Minimum sale amount must be 10 USDT.",
-    msgBought:"✅ You bought {amt} OPAY. ({usdt} USDT)",
-    msgSold:"✅ You sold {amt} OPAY. ({usdt} USDT)",
-    histTitle:"Transaction History",noHist:"No transactions yet.",
-    colType:"Type",colDate:"Date",colOpay:"OPAY",colUsdt:"USDT",colPrice:"Unit Price",
-    tagBuy:"▲ BUY",tagSell:"▼ SELL",
-    adminPrice:"Daily Price Update",curBuy:"Current buy price:",
-    newBuyLbl:"New buy price (USDT) — sell auto-calculated 2% lower",
-    newBuyRow:"New buy:",newSellRow:"New sell (2% lower):",
-    updateBtn:"Update Price",
-    msgPriceOk:"✅ Price updated: Buy {buy} USDT | Sell {sell} USDT",
-    errPrice:"⚠️ New price must be higher than current buy price.",
-    guideTitle:"🔑 Price Setting Guide",
-    guideBody:"In this demo update the price with the form above. In a real deployment:\n\n1. Database approach: Save the daily price to Firebase or Supabase — all users see it in real time.\n\n2. Manual update: Log in each morning and enter the new price. The system auto-applies 2% spread.\n\nTip: A daily increase of 0.3–1.5% creates a consistent growth chart.",
-    phTitle:"Price History",dailyChg:"Daily Change",
-    cntTitle:"Platform Info Text (editable)",
-    cntDesc:"Edit the text shown to users in the Platform Information section on the dashboard.",
-    saveBtn:"Save Changes",msgSaved:"✅ Platform info updated.",
-    userTitle:"User Management",userDesc:"View all registered users and adjust their balances.",
-    searchU:"Search by username or email…",
-    cU:"User",cE:"Email",cO:"OPAY",cUsd:"USDT",cA:"Actions",
-    addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",
-    adjFor:"Adjust Balance for",amtLbl:"Amount",applyBtn:"Apply",cancelBtn:"Cancel",
-    msgBalOk:"✅ Balance updated.",noUsers:"No users found.",
-  },
-  tr:{
-    login:"Giriş Yap",register:"Üye Ol",username:"Kullanıcı Adı",email:"E-posta",password:"Şifre",
-    confirmPw:"Şifre (Tekrar)",fullName:"Ad Soyad",loginBtn:"Giriş Yap",registerBtn:"Hesap Oluştur",
-    withEmail:"E-posta ile Devam Et",noAcc:"Hesabınız yok mu?",haveAcc:"Zaten hesabınız var mı?",
-    signUp:"Üye olun",signIn:"Giriş yapın",selectLang:"Dil",
-    welcomeBack:"Tekrar Hoş Geldiniz",createAcc:"Hesap Oluşturun",tagline:"OPAY TOKEN Platformu",
-    errLogin:"Kullanıcı adı/e-posta veya şifre hatalı.",errExists:"Bu kullanıcı adı veya e-posta zaten kayıtlı.",
-    errFields:"Lütfen tüm alanları doldurun.",errPwMatch:"Şifreler eşleşmiyor.",
-    errEmail:"Lütfen geçerli bir e-posta adresi girin.",
-    okRegister:"Hesap oluşturuldu! Şimdi giriş yapabilirsiniz.",
-    dashboard:"Panel",exchange:"Exchange",history:"Geçmiş",admin:"Admin",logout:"Çıkış",
-    buyPrice:"Alış Fiyatı",sellPrice:"Satış Fiyatı",yourOpay:"OPAY Bakiyeniz",yourUsdt:"USDT Bakiyeniz",
-    lastUpdate:"son güncelleme",spread:"Spread: %2 sabit",
-    chartTitle:"OPAY TOKEN Fiyat Grafiği (Alış)",
-    startP:"Başlangıç",currentP:"Güncel",totalGain:"Toplam Artış",
-    platformInfo:"Platform Bilgisi",
-    iT1:"Güvenli Platform",iD1:"Sadece bu site üzerinden alım satım",
-    iT2:"Sürekli Artan Değer",iD2:"Her gün yönetici tarafından belirlenen fiyat",
-    iT3:"Anında İşlem",iD3:"USDT ile OPAY TOKEN arası kolay dönüşüm",
-    iT4:"%2 Sabit Spread",iD4:"Şeffaf ve sabit alım satım farkı",
-    exTitle:"Exchange",buyOpay:"▲ OPAY AL",sellOpay:"▼ OPAY SAT",
-    opayBal:"OPAY Bakiye",usdtBal:"USDT Bakiye",
-    amtBuy:"Satın almak istediğiniz OPAY miktarı",amtSell:"Satmak istediğiniz OPAY miktarı",
-    willGet:"Alacağınız",willPay:"Ödenecek USDT",willSell:"Satacağınız",willGetU:"Alacağınız USDT",
-    minWarn:"⚠️ Min. çekim 10 USDT",
-    btnBuy:"✅ OPAY SATIN AL",btnSell:"💱 OPAY SAT",
-    errUsdt:"Yetersiz USDT bakiyesi.",errOpay:"Yetersiz OPAY bakiyesi.",
-    errAmt:"Geçerli bir miktar girin.",errMinSell:"Minimum satış tutarı 10 USDT olmalıdır.",
-    msgBought:"✅ {amt} OPAY satın aldınız. ({usdt} USDT)",
-    msgSold:"✅ {amt} OPAY sattınız. ({usdt} USDT)",
-    histTitle:"Alım Satım Geçmişi",noHist:"Henüz işlem geçmişiniz bulunmamaktadır.",
-    colType:"İşlem",colDate:"Tarih",colOpay:"OPAY",colUsdt:"USDT",colPrice:"Birim Fiyat",
-    tagBuy:"▲ ALIM",tagSell:"▼ SATIM",
-    adminPrice:"Günlük Fiyat Güncelleme",curBuy:"Mevcut alış fiyatı:",
-    newBuyLbl:"Yeni alış fiyatı (USDT) — Satış fiyatı otomatik %2 düşük hesaplanır",
-    newBuyRow:"Yeni alış:",newSellRow:"Yeni satış (%2 düşük):",
-    updateBtn:"Fiyatı Güncelle",
-    msgPriceOk:"✅ Fiyat güncellendi: Alış {buy} USDT | Satış {sell} USDT",
-    errPrice:"⚠️ Yeni fiyat mevcut alış fiyatından büyük olmalıdır.",
-    guideTitle:"🔑 Fiyat Belirleme Rehberi",
-    guideBody:"Bu demo uygulamada fiyatı yukarıdaki form ile güncelleyebilirsiniz. Gerçek uygulamada:\n\n1. Veritabanı: Firebase/Supabase'e günlük fiyatı kaydedin — tüm kullanıcılar anlık görür.\n\n2. Manuel: Her sabah admin paneline giriş yapıp yeni fiyatı girin. Sistem %2 spread'i otomatik uygular.\n\nÖneri: Günlük %0.3–1.5 artış tutarlı büyüme grafiği oluşturur.",
-    phTitle:"Fiyat Geçmişi",dailyChg:"Günlük Değişim",
-    cntTitle:"Platform Bilgisi Metni (düzenlenebilir)",
-    cntDesc:"Panodaki Platform Bilgisi bölümünde kullanıcılara gösterilen metni düzenleyin.",
-    saveBtn:"Değişiklikleri Kaydet",msgSaved:"✅ Platform bilgisi güncellendi.",
-    userTitle:"Kullanıcı Yönetimi",userDesc:"Tüm kayıtlı kullanıcıları görüntüleyin ve bakiyelerini ayarlayın.",
-    searchU:"Kullanıcı adı veya e-posta ile ara…",
-    cU:"Kullanıcı",cE:"E-posta",cO:"OPAY",cUsd:"USDT",cA:"İşlemler",
-    addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",
-    adjFor:"Bakiye Düzenle:",amtLbl:"Miktar",applyBtn:"Uygula",cancelBtn:"İptal",
-    msgBalOk:"✅ Bakiye güncellendi.",noUsers:"Kullanıcı bulunamadı.",
-  },
-};
-// Minimal copies for other languages (English fallback for missing keys)
-const make=(overrides)=>({...D.en,...overrides});
-D.es=make({login:"Iniciar sesión",register:"Registrarse",username:"Usuario",email:"Correo electrónico",password:"Contraseña",confirmPw:"Confirmar contraseña",fullName:"Nombre completo",loginBtn:"Iniciar sesión",registerBtn:"Crear cuenta",withEmail:"Continuar con correo",noAcc:"¿No tienes cuenta?",haveAcc:"¿Ya tienes cuenta?",signUp:"Regístrate",signIn:"Inicia sesión",selectLang:"Idioma",welcomeBack:"Bienvenido de nuevo",createAcc:"Crea tu cuenta",tagline:"Plataforma OPAY TOKEN",errLogin:"Usuario/correo o contraseña incorrectos.",errExists:"Este usuario o correo ya está registrado.",errFields:"Por favor complete todos los campos.",errPwMatch:"Las contraseñas no coinciden.",errEmail:"Ingrese un correo electrónico válido.",okRegister:"¡Cuenta creada! Ya puede iniciar sesión.",dashboard:"Panel",exchange:"Exchange",history:"Historial",admin:"Admin",logout:"Cerrar sesión",buyPrice:"Precio de compra",sellPrice:"Precio de venta",yourOpay:"Su saldo OPAY",yourUsdt:"Su saldo USDT",spread:"Diferencial fijo del 2%",chartTitle:"Gráfico de precio OPAY TOKEN (Compra)",startP:"Inicio",currentP:"Actual",totalGain:"Ganancia total",platformInfo:"Información de la plataforma",iT1:"Plataforma segura",iD1:"Opere solo a través de este sitio",iT2:"Valor en crecimiento continuo",iD2:"Precio diario establecido por el administrador",iT3:"Transacciones instantáneas",iD3:"Conversión fácil entre USDT y OPAY TOKEN",iT4:"Diferencial fijo del 2%",iD4:"Diferencia de compra/venta transparente y fija",exTitle:"Exchange",buyOpay:"▲ COMPRAR OPAY",sellOpay:"▼ VENDER OPAY",amtBuy:"Cantidad de OPAY a comprar",amtSell:"Cantidad de OPAY a vender",willGet:"Recibirá",willPay:"Pagará (USDT)",willSell:"Venderá",willGetU:"Recibirá (USDT)",minWarn:"⚠️ Retiro mínimo 10 USDT",btnBuy:"✅ COMPRAR OPAY",btnSell:"💱 VENDER OPAY",errUsdt:"Saldo USDT insuficiente.",errOpay:"Saldo OPAY insuficiente.",errAmt:"Ingrese una cantidad válida.",errMinSell:"El monto mínimo de venta debe ser 10 USDT.",msgBought:"✅ Compró {amt} OPAY. ({usdt} USDT)",msgSold:"✅ Vendió {amt} OPAY. ({usdt} USDT)",histTitle:"Historial de transacciones",noHist:"Aún no tiene transacciones.",tagBuy:"▲ COMPRA",tagSell:"▼ VENTA",adminPrice:"Actualización diaria de precio",curBuy:"Precio de compra actual:",updateBtn:"Actualizar precio",msgPriceOk:"✅ Precio actualizado: Compra {buy} USDT | Venta {sell} USDT",errPrice:"⚠️ El nuevo precio debe ser mayor que el precio de compra actual.",phTitle:"Historial de precios",dailyChg:"Cambio diario",cntTitle:"Texto de información (editable)",saveBtn:"Guardar cambios",msgSaved:"✅ Información actualizada.",userTitle:"Gestión de usuarios",userDesc:"Vea todos los usuarios y ajuste sus saldos.",searchU:"Buscar por usuario o correo…",cU:"Usuario",cE:"Correo",cO:"OPAY",cUsd:"USDT",cA:"Acciones",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"Ajustar saldo de",amtLbl:"Cantidad",applyBtn:"Aplicar",cancelBtn:"Cancelar",msgBalOk:"✅ Saldo actualizado.",noUsers:"No se encontraron usuarios.",});
-D.pt=make({login:"Entrar",register:"Cadastrar",username:"Usuário",email:"E-mail",password:"Senha",confirmPw:"Confirmar senha",fullName:"Nome completo",loginBtn:"Entrar",registerBtn:"Criar conta",withEmail:"Continuar com e-mail",noAcc:"Não tem conta?",haveAcc:"Já tem conta?",signUp:"Cadastre-se",signIn:"Entre",selectLang:"Idioma",welcomeBack:"Bem-vindo de volta",createAcc:"Crie sua conta",tagline:"Plataforma OPAY TOKEN",errLogin:"Usuário/e-mail ou senha incorretos.",errExists:"Este usuário ou e-mail já está cadastrado.",errFields:"Preencha todos os campos.",errPwMatch:"As senhas não coincidem.",errEmail:"Digite um e-mail válido.",okRegister:"Conta criada! Agora você pode entrar.",dashboard:"Painel",exchange:"Exchange",history:"Histórico",admin:"Admin",logout:"Sair",buyPrice:"Preço de compra",sellPrice:"Preço de venda",yourOpay:"Seu saldo OPAY",yourUsdt:"Seu saldo USDT",spread:"Spread fixo de 2%",chartTitle:"Gráfico de preço OPAY TOKEN (Compra)",startP:"Início",currentP:"Atual",totalGain:"Ganho total",platformInfo:"Informações da plataforma",iT1:"Plataforma segura",iD1:"Negocie apenas por este site",iT2:"Valor em crescimento contínuo",iD2:"Preço diário definido pelo administrador",iT3:"Transações instantâneas",iD3:"Conversão fácil entre USDT e OPAY TOKEN",iT4:"Spread fixo de 2%",iD4:"Diferença de compra/venda transparente e fixa",exTitle:"Exchange",buyOpay:"▲ COMPRAR OPAY",sellOpay:"▼ VENDER OPAY",amtBuy:"Quantidade de OPAY a comprar",amtSell:"Quantidade de OPAY a vender",willGet:"Você receberá",willPay:"Você pagará (USDT)",willSell:"Você venderá",willGetU:"Você receberá (USDT)",minWarn:"⚠️ Saque mínimo de 10 USDT",btnBuy:"✅ COMPRAR OPAY",btnSell:"💱 VENDER OPAY",errUsdt:"Saldo USDT insuficiente.",errOpay:"Saldo OPAY insuficiente.",errAmt:"Digite uma quantidade válida.",errMinSell:"O valor mínimo de venda deve ser 10 USDT.",msgBought:"✅ Você comprou {amt} OPAY. ({usdt} USDT)",msgSold:"✅ Você vendeu {amt} OPAY. ({usdt} USDT)",histTitle:"Histórico de transações",noHist:"Você ainda não tem transações.",tagBuy:"▲ COMPRA",tagSell:"▼ VENDA",adminPrice:"Atualização diária de preço",curBuy:"Preço de compra atual:",updateBtn:"Atualizar preço",msgPriceOk:"✅ Preço atualizado: Compra {buy} USDT | Venda {sell} USDT",errPrice:"⚠️ O novo preço deve ser maior que o preço de compra atual.",phTitle:"Histórico de preços",dailyChg:"Variação diária",cntTitle:"Texto de informações (editável)",saveBtn:"Salvar alterações",msgSaved:"✅ Informações atualizadas.",userTitle:"Gerenciamento de usuários",userDesc:"Veja todos os usuários e ajuste seus saldos.",searchU:"Buscar por usuário ou e-mail…",cU:"Usuário",cE:"E-mail",cO:"OPAY",cUsd:"USDT",cA:"Ações",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"Ajustar saldo de",amtLbl:"Quantidade",applyBtn:"Aplicar",cancelBtn:"Cancelar",msgBalOk:"✅ Saldo atualizado.",noUsers:"Nenhum usuário encontrado.",});
-D.fr=make({login:"Connexion",register:"S'inscrire",username:"Nom d'utilisateur",email:"E-mail",password:"Mot de passe",confirmPw:"Confirmer le mot de passe",fullName:"Nom complet",loginBtn:"Se connecter",registerBtn:"Créer un compte",withEmail:"Continuer avec e-mail",noAcc:"Pas de compte ?",haveAcc:"Déjà un compte ?",signUp:"Inscrivez-vous",signIn:"Connectez-vous",selectLang:"Langue",welcomeBack:"Bon retour",createAcc:"Créez votre compte",tagline:"Plateforme OPAY TOKEN",errLogin:"Nom d'utilisateur/e-mail ou mot de passe incorrect.",errExists:"Ce nom d'utilisateur ou e-mail est déjà enregistré.",errFields:"Veuillez remplir tous les champs.",errPwMatch:"Les mots de passe ne correspondent pas.",errEmail:"Veuillez entrer une adresse e-mail valide.",okRegister:"Compte créé ! Vous pouvez maintenant vous connecter.",dashboard:"Tableau de bord",exchange:"Exchange",history:"Historique",admin:"Admin",logout:"Déconnexion",buyPrice:"Prix d'achat",sellPrice:"Prix de vente",yourOpay:"Votre solde OPAY",yourUsdt:"Votre solde USDT",spread:"Écart fixe de 2%",chartTitle:"Graphique de prix OPAY TOKEN (Achat)",startP:"Début",currentP:"Actuel",totalGain:"Gain total",platformInfo:"Informations sur la plateforme",iT1:"Plateforme sécurisée",iD1:"Échangez uniquement via ce site",iT2:"Valeur en croissance continue",iD2:"Prix quotidien fixé par l'administrateur",iT3:"Transactions instantanées",iD3:"Conversion facile entre USDT et OPAY TOKEN",iT4:"Écart fixe de 2%",iD4:"Différence d'achat/vente transparente et fixe",exTitle:"Exchange",buyOpay:"▲ ACHETER OPAY",sellOpay:"▼ VENDRE OPAY",amtBuy:"Quantité d'OPAY à acheter",amtSell:"Quantité d'OPAY à vendre",willGet:"Vous recevrez",willPay:"Vous paierez (USDT)",willSell:"Vous vendrez",willGetU:"Vous recevrez (USDT)",minWarn:"⚠️ Retrait minimum 10 USDT",btnBuy:"✅ ACHETER OPAY",btnSell:"💱 VENDRE OPAY",errUsdt:"Solde USDT insuffisant.",errOpay:"Solde OPAY insuffisant.",errAmt:"Veuillez entrer un montant valide.",errMinSell:"Le montant minimum de vente doit être de 10 USDT.",msgBought:"✅ Vous avez acheté {amt} OPAY. ({usdt} USDT)",msgSold:"✅ Vous avez vendu {amt} OPAY. ({usdt} USDT)",histTitle:"Historique des transactions",noHist:"Vous n'avez encore aucune transaction.",tagBuy:"▲ ACHAT",tagSell:"▼ VENTE",adminPrice:"Mise à jour quotidienne du prix",curBuy:"Prix d'achat actuel :",updateBtn:"Mettre à jour le prix",msgPriceOk:"✅ Prix mis à jour : Achat {buy} USDT | Vente {sell} USDT",errPrice:"⚠️ Le nouveau prix doit être supérieur au prix d'achat actuel.",phTitle:"Historique des prix",dailyChg:"Variation quotidienne",cntTitle:"Texte d'information (modifiable)",saveBtn:"Enregistrer les modifications",msgSaved:"✅ Informations mises à jour.",userTitle:"Gestion des utilisateurs",userDesc:"Consultez tous les utilisateurs et ajustez leurs soldes.",searchU:"Rechercher par nom d'utilisateur ou e-mail…",cU:"Utilisateur",cE:"E-mail",cO:"OPAY",cUsd:"USDT",cA:"Actions",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"Ajuster le solde de",amtLbl:"Montant",applyBtn:"Appliquer",cancelBtn:"Annuler",msgBalOk:"✅ Solde mis à jour.",noUsers:"Aucun utilisateur trouvé.",});
-D.de=make({login:"Anmelden",register:"Registrieren",username:"Benutzername",email:"E-Mail",password:"Passwort",confirmPw:"Passwort bestätigen",fullName:"Vollständiger Name",loginBtn:"Anmelden",registerBtn:"Konto erstellen",withEmail:"Mit E-Mail fortfahren",noAcc:"Noch kein Konto?",haveAcc:"Bereits ein Konto?",signUp:"Registrieren",signIn:"Anmelden",selectLang:"Sprache",welcomeBack:"Willkommen zurück",createAcc:"Konto erstellen",tagline:"OPAY TOKEN Plattform",errLogin:"Benutzername/E-Mail oder Passwort falsch.",errExists:"Dieser Benutzername oder E-Mail ist bereits registriert.",errFields:"Bitte füllen Sie alle Felder aus.",errPwMatch:"Passwörter stimmen nicht überein.",errEmail:"Bitte geben Sie eine gültige E-Mail-Adresse ein.",okRegister:"Konto erstellt! Sie können sich jetzt anmelden.",dashboard:"Dashboard",exchange:"Exchange",history:"Verlauf",admin:"Admin",logout:"Abmelden",buyPrice:"Kaufpreis",sellPrice:"Verkaufspreis",yourOpay:"Ihr OPAY-Guthaben",yourUsdt:"Ihr USDT-Guthaben",spread:"Fester Spread von 2%",chartTitle:"OPAY TOKEN Preisdiagramm (Kauf)",startP:"Start",currentP:"Aktuell",totalGain:"Gesamtgewinn",platformInfo:"Plattforminformationen",iT1:"Sichere Plattform",iD1:"Handeln Sie nur über diese Website",iT2:"Stetig wachsender Wert",iD2:"Täglicher Preis vom Administrator festgelegt",iT3:"Sofortige Transaktionen",iD3:"Einfache Umrechnung zwischen USDT und OPAY TOKEN",iT4:"Fester Spread von 2%",iD4:"Transparente und feste Kauf-/Verkaufsdifferenz",exTitle:"Exchange",buyOpay:"▲ OPAY KAUFEN",sellOpay:"▼ OPAY VERKAUFEN",amtBuy:"Zu kaufende OPAY-Menge",amtSell:"Zu verkaufende OPAY-Menge",willGet:"Sie erhalten",willPay:"Sie zahlen (USDT)",willSell:"Sie verkaufen",willGetU:"Sie erhalten (USDT)",minWarn:"⚠️ Mindestauszahlung 10 USDT",btnBuy:"✅ OPAY KAUFEN",btnSell:"💱 OPAY VERKAUFEN",errUsdt:"Unzureichendes USDT-Guthaben.",errOpay:"Unzureichendes OPAY-Guthaben.",errAmt:"Bitte geben Sie einen gültigen Betrag ein.",errMinSell:"Der Mindestverkaufsbetrag muss 10 USDT betragen.",msgBought:"✅ Sie haben {amt} OPAY gekauft. ({usdt} USDT)",msgSold:"✅ Sie haben {amt} OPAY verkauft. ({usdt} USDT)",histTitle:"Transaktionsverlauf",noHist:"Sie haben noch keine Transaktionen.",tagBuy:"▲ KAUF",tagSell:"▼ VERKAUF",adminPrice:"Tägliche Preisaktualisierung",curBuy:"Aktueller Kaufpreis:",updateBtn:"Preis aktualisieren",msgPriceOk:"✅ Preis aktualisiert: Kauf {buy} USDT | Verkauf {sell} USDT",errPrice:"⚠️ Der neue Preis muss höher als der aktuelle Kaufpreis sein.",phTitle:"Preisverlauf",dailyChg:"Tägliche Änderung",cntTitle:"Plattform-Infotext (bearbeitbar)",saveBtn:"Änderungen speichern",msgSaved:"✅ Plattforminformationen aktualisiert.",userTitle:"Benutzerverwaltung",userDesc:"Alle Benutzer anzeigen und Guthaben anpassen.",searchU:"Nach Benutzername oder E-Mail suchen…",cU:"Benutzer",cE:"E-Mail",cO:"OPAY",cUsd:"USDT",cA:"Aktionen",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"Guthaben anpassen für",amtLbl:"Betrag",applyBtn:"Anwenden",cancelBtn:"Abbrechen",msgBalOk:"✅ Guthaben aktualisiert.",noUsers:"Keine Benutzer gefunden.",});
-D.ru=make({login:"Вход",register:"Регистрация",username:"Имя пользователя",email:"Эл. почта",password:"Пароль",confirmPw:"Подтвердите пароль",fullName:"Полное имя",loginBtn:"Войти",registerBtn:"Создать аккаунт",withEmail:"Продолжить с email",noAcc:"Нет аккаунта?",haveAcc:"Уже есть аккаунт?",signUp:"Зарегистрироваться",signIn:"Войти",selectLang:"Язык",welcomeBack:"С возвращением",createAcc:"Создайте аккаунт",tagline:"Платформа OPAY TOKEN",errLogin:"Неверное имя пользователя/email или пароль.",errExists:"Это имя пользователя или email уже зарегистрированы.",errFields:"Пожалуйста, заполните все поля.",errPwMatch:"Пароли не совпадают.",errEmail:"Введите действительный email.",okRegister:"Аккаунт создан! Теперь вы можете войти.",dashboard:"Панель",exchange:"Обмен",history:"История",admin:"Админ",logout:"Выйти",buyPrice:"Цена покупки",sellPrice:"Цена продажи",yourOpay:"Ваш баланс OPAY",yourUsdt:"Ваш баланс USDT",spread:"Фиксированный спред 2%",chartTitle:"График цены OPAY TOKEN (Покупка)",startP:"Начало",currentP:"Текущая",totalGain:"Общий рост",platformInfo:"Информация о платформе",iT1:"Безопасная платформа",iD1:"Торгуйте только через этот сайт",iT2:"Постоянно растущая стоимость",iD2:"Ежедневная цена устанавливается администратором",iT3:"Мгновенные транзакции",iD3:"Простая конвертация между USDT и OPAY TOKEN",iT4:"Фиксированный спред 2%",iD4:"Прозрачная и фиксированная разница покупки/продажи",exTitle:"Обмен",buyOpay:"▲ КУПИТЬ OPAY",sellOpay:"▼ ПРОДАТЬ OPAY",amtBuy:"Количество OPAY для покупки",amtSell:"Количество OPAY для продажи",willGet:"Вы получите",willPay:"Вы заплатите (USDT)",willSell:"Вы продадите",willGetU:"Вы получите (USDT)",minWarn:"⚠️ Минимальный вывод 10 USDT",btnBuy:"✅ КУПИТЬ OPAY",btnSell:"💱 ПРОДАТЬ OPAY",errUsdt:"Недостаточно USDT.",errOpay:"Недостаточно OPAY.",errAmt:"Введите корректную сумму.",errMinSell:"Минимальная сумма продажи должна быть 10 USDT.",msgBought:"✅ Вы купили {amt} OPAY. ({usdt} USDT)",msgSold:"✅ Вы продали {amt} OPAY. ({usdt} USDT)",histTitle:"История транзакций",noHist:"У вас пока нет транзакций.",tagBuy:"▲ ПОКУПКА",tagSell:"▼ ПРОДАЖА",adminPrice:"Ежедневное обновление цены",curBuy:"Текущая цена покупки:",updateBtn:"Обновить цену",msgPriceOk:"✅ Цена обновлена: Покупка {buy} USDT | Продажа {sell} USDT",errPrice:"⚠️ Новая цена должна быть выше текущей цены покупки.",phTitle:"История цен",dailyChg:"Дневное изменение",cntTitle:"Текст информации (редактируемый)",saveBtn:"Сохранить изменения",msgSaved:"✅ Информация обновлена.",userTitle:"Управление пользователями",userDesc:"Просматривайте всех пользователей и корректируйте их балансы.",searchU:"Поиск по имени пользователя или email…",cU:"Пользователь",cE:"Email",cO:"OPAY",cUsd:"USDT",cA:"Действия",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"Изменить баланс для",amtLbl:"Сумма",applyBtn:"Применить",cancelBtn:"Отмена",msgBalOk:"✅ Баланс обновлен.",noUsers:"Пользователи не найдены.",});
-D.ja=make({login:"ログイン",register:"登録",username:"ユーザー名",email:"メール",password:"パスワード",confirmPw:"パスワード（確認）",fullName:"氏名",loginBtn:"ログイン",registerBtn:"アカウント作成",withEmail:"メールで続ける",noAcc:"アカウントをお持ちでないですか？",haveAcc:"すでにアカウントをお持ちですか？",signUp:"登録する",signIn:"ログインする",selectLang:"言語",welcomeBack:"おかえりなさい",createAcc:"アカウントを作成",tagline:"OPAY TOKEN プラットフォーム",errLogin:"ユーザー名/メールまたはパスワードが正しくありません。",errExists:"このユーザー名またはメールは既に登録されています。",errFields:"すべての項目を入力してください。",errPwMatch:"パスワードが一致しません。",errEmail:"有効なメールアドレスを入力してください。",okRegister:"アカウントが作成されました！ログインできます。",dashboard:"ダッシュボード",exchange:"取引所",history:"履歴",admin:"管理者",logout:"ログアウト",buyPrice:"購入価格",sellPrice:"売却価格",yourOpay:"OPAY残高",yourUsdt:"USDT残高",spread:"固定スプレッド2%",chartTitle:"OPAY TOKEN 価格チャート（購入）",startP:"開始",currentP:"現在",totalGain:"合計上昇率",platformInfo:"プラットフォーム情報",iT1:"安全なプラットフォーム",iD1:"このサイトのみで取引可能",iT2:"継続的に成長する価値",iD2:"管理者が毎日設定する価格",iT3:"即時取引",iD3:"USDTとOPAY TOKEN間の簡単な変換",iT4:"固定スプレッド2%",iD4:"透明で固定された売買差",exTitle:"取引所",buyOpay:"▲ OPAY購入",sellOpay:"▼ OPAY売却",amtBuy:"購入するOPAYの量",amtSell:"売却するOPAYの量",willGet:"受取額",willPay:"支払額（USDT）",willSell:"売却額",willGetU:"受取額（USDT）",minWarn:"⚠️ 最低出金額は10 USDT",btnBuy:"✅ OPAYを購入",btnSell:"💱 OPAYを売却",errUsdt:"USDT残高が不足しています。",errOpay:"OPAY残高が不足しています。",errAmt:"有効な金額を入力してください。",errMinSell:"最低売却額は10 USDTである必要があります。",msgBought:"✅ {amt} OPAYを購入しました。（{usdt} USDT）",msgSold:"✅ {amt} OPAYを売却しました。（{usdt} USDT）",histTitle:"取引履歴",noHist:"まだ取引がありません。",tagBuy:"▲ 購入",tagSell:"▼ 売却",adminPrice:"日次価格更新",curBuy:"現在の購入価格：",updateBtn:"価格を更新",msgPriceOk:"✅ 価格が更新されました：購入 {buy} USDT | 売却 {sell} USDT",errPrice:"⚠️ 新しい価格は現在の購入価格より高くなければなりません。",phTitle:"価格履歴",dailyChg:"日次変動",cntTitle:"プラットフォーム情報テキスト（編集可能）",saveBtn:"変更を保存",msgSaved:"✅ プラットフォーム情報が更新されました。",userTitle:"ユーザー管理",userDesc:"登録済みの全ユーザーを表示し、残高を調整します。",searchU:"ユーザー名またはメールで検索…",cU:"ユーザー",cE:"メール",cO:"OPAY",cUsd:"USDT",cA:"操作",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"残高を調整：",amtLbl:"金額",applyBtn:"適用",cancelBtn:"キャンセル",msgBalOk:"✅ 残高が更新されました。",noUsers:"ユーザーが見つかりません。",});
-D.ko=make({login:"로그인",register:"회원가입",username:"사용자 이름",email:"이메일",password:"비밀번호",confirmPw:"비밀번호 확인",fullName:"전체 이름",loginBtn:"로그인",registerBtn:"계정 만들기",withEmail:"이메일로 계속하기",noAcc:"계정이 없으신가요?",haveAcc:"이미 계정이 있으신가요?",signUp:"회원가입",signIn:"로그인",selectLang:"언어",welcomeBack:"다시 오신 것을 환영합니다",createAcc:"계정 생성",tagline:"OPAY TOKEN 플랫폼",errLogin:"사용자 이름/이메일 또는 비밀번호가 올바르지 않습니다.",errExists:"이 사용자 이름 또는 이메일은 이미 등록되어 있습니다.",errFields:"모든 필드를 입력해 주세요.",errPwMatch:"비밀번호가 일치하지 않습니다.",errEmail:"유효한 이메일 주소를 입력해 주세요.",okRegister:"계정이 생성되었습니다! 이제 로그인할 수 있습니다.",dashboard:"대시보드",exchange:"거래소",history:"내역",admin:"관리자",logout:"로그아웃",buyPrice:"매수가",sellPrice:"매도가",yourOpay:"내 OPAY 잔액",yourUsdt:"내 USDT 잔액",spread:"고정 스프레드 2%",chartTitle:"OPAY TOKEN 가격 차트 (매수)",startP:"시작",currentP:"현재",totalGain:"총 상승률",platformInfo:"플랫폼 정보",iT1:"안전한 플랫폼",iD1:"이 사이트에서만 거래 가능",iT2:"지속적으로 상승하는 가치",iD2:"관리자가 매일 설정하는 가격",iT3:"즉시 거래",iD3:"USDT와 OPAY TOKEN 간 손쉬운 전환",iT4:"고정 스프레드 2%",iD4:"투명하고 고정된 매수/매도 차이",exTitle:"거래소",buyOpay:"▲ OPAY 매수",sellOpay:"▼ OPAY 매도",amtBuy:"매수할 OPAY 수량",amtSell:"매도할 OPAY 수량",willGet:"받게 될 수량",willPay:"지불할 금액(USDT)",willSell:"매도할 수량",willGetU:"받게 될 금액(USDT)",minWarn:"⚠️ 최소 출금액 10 USDT",btnBuy:"✅ OPAY 매수",btnSell:"💱 OPAY 매도",errUsdt:"USDT 잔액이 부족합니다.",errOpay:"OPAY 잔액이 부족합니다.",errAmt:"유효한 금액을 입력해 주세요.",errMinSell:"최소 매도 금액은 10 USDT여야 합니다.",msgBought:"✅ {amt} OPAY를 매수했습니다. ({usdt} USDT)",msgSold:"✅ {amt} OPAY를 매도했습니다. ({usdt} USDT)",histTitle:"거래 내역",noHist:"아직 거래 내역이 없습니다.",tagBuy:"▲ 매수",tagSell:"▼ 매도",adminPrice:"일일 가격 업데이트",curBuy:"현재 매수가:",updateBtn:"가격 업데이트",msgPriceOk:"✅ 가격이 업데이트되었습니다: 매수 {buy} USDT | 매도 {sell} USDT",errPrice:"⚠️ 새 가격은 현재 매수가보다 높아야 합니다.",phTitle:"가격 내역",dailyChg:"일일 변동",cntTitle:"플랫폼 정보 텍스트(편집 가능)",saveBtn:"변경사항 저장",msgSaved:"✅ 플랫폼 정보가 업데이트되었습니다.",userTitle:"사용자 관리",userDesc:"등록된 모든 사용자를 확인하고 잔액을 조정합니다.",searchU:"사용자 이름 또는 이메일로 검색…",cU:"사용자",cE:"이메일",cO:"OPAY",cUsd:"USDT",cA:"작업",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"잔액 조정:",amtLbl:"금액",applyBtn:"적용",cancelBtn:"취소",msgBalOk:"✅ 잔액이 업데이트되었습니다.",noUsers:"사용자를 찾을 수 없습니다.",});
-D.zh=make({login:"登录",register:"注册",username:"用户名",email:"电子邮箱",password:"密码",confirmPw:"确认密码",fullName:"全名",loginBtn:"登录",registerBtn:"创建账户",withEmail:"使用邮箱继续",noAcc:"还没有账户？",haveAcc:"已有账户？",signUp:"注册",signIn:"登录",selectLang:"语言",welcomeBack:"欢迎回来",createAcc:"创建您的账户",tagline:"OPAY TOKEN 平台",errLogin:"用户名/邮箱或密码错误。",errExists:"该用户名或邮箱已被注册。",errFields:"请填写所有字段。",errPwMatch:"两次密码不一致。",errEmail:"请输入有效的电子邮箱地址。",okRegister:"账户创建成功！您现在可以登录了。",dashboard:"仪表盘",exchange:"交易所",history:"历史记录",admin:"管理员",logout:"退出登录",buyPrice:"买入价",sellPrice:"卖出价",yourOpay:"您的 OPAY 余额",yourUsdt:"您的 USDT 余额",spread:"固定2%价差",chartTitle:"OPAY TOKEN 价格图表（买入）",startP:"起始",currentP:"当前",totalGain:"总涨幅",platformInfo:"平台信息",iT1:"安全平台",iD1:"仅可通过本站进行交易",iT2:"持续增长的价值",iD2:"每日价格由管理员设定",iT3:"即时交易",iD3:"USDT 与 OPAY TOKEN 之间轻松转换",iT4:"固定2%价差",iD4:"透明且固定的买卖差价",exTitle:"交易所",buyOpay:"▲ 买入 OPAY",sellOpay:"▼ 卖出 OPAY",amtBuy:"买入的 OPAY 数量",amtSell:"卖出的 OPAY 数量",willGet:"您将获得",willPay:"您将支付（USDT）",willSell:"您将卖出",willGetU:"您将获得（USDT）",minWarn:"⚠️ 最低提现 10 USDT",btnBuy:"✅ 买入 OPAY",btnSell:"💱 卖出 OPAY",errUsdt:"USDT 余额不足。",errOpay:"OPAY 余额不足。",errAmt:"请输入有效金额。",errMinSell:"最低卖出金额必须为 10 USDT。",msgBought:"✅ 您已购买 {amt} OPAY。（{usdt} USDT）",msgSold:"✅ 您已卖出 {amt} OPAY。（{usdt} USDT）",histTitle:"交易历史",noHist:"您还没有任何交易记录。",tagBuy:"▲ 买入",tagSell:"▼ 卖出",adminPrice:"每日价格更新",curBuy:"当前买入价：",updateBtn:"更新价格",msgPriceOk:"✅ 价格已更新：买入 {buy} USDT | 卖出 {sell} USDT",errPrice:"⚠️ 新价格必须高于当前买入价。",phTitle:"价格历史",dailyChg:"每日变动",cntTitle:"平台信息文字（可编辑）",saveBtn:"保存更改",msgSaved:"✅ 平台信息已更新。",userTitle:"用户管理",userDesc:"查看所有注册用户并调整其余额。",searchU:"按用户名或邮箱搜索…",cU:"用户",cE:"邮箱",cO:"OPAY",cUsd:"USDT",cA:"操作",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"调整余额：",amtLbl:"金额",applyBtn:"应用",cancelBtn:"取消",msgBalOk:"✅ 余额已更新。",noUsers:"未找到用户。",});
-D.it=make({login:"Accedi",register:"Registrati",username:"Nome utente",email:"E-mail",password:"Password",confirmPw:"Conferma password",fullName:"Nome completo",loginBtn:"Accedi",registerBtn:"Crea account",withEmail:"Continua con e-mail",noAcc:"Non hai un account?",haveAcc:"Hai già un account?",signUp:"Registrati",signIn:"Accedi",selectLang:"Lingua",welcomeBack:"Bentornato",createAcc:"Crea il tuo account",tagline:"Piattaforma OPAY TOKEN",errLogin:"Nome utente/e-mail o password errati.",errExists:"Questo nome utente o e-mail è già registrato.",errFields:"Si prega di compilare tutti i campi.",errPwMatch:"Le password non corrispondono.",errEmail:"Inserisci un indirizzo e-mail valido.",okRegister:"Account creato! Ora puoi accedere.",dashboard:"Dashboard",exchange:"Exchange",history:"Cronologia",admin:"Admin",logout:"Esci",buyPrice:"Prezzo di acquisto",sellPrice:"Prezzo di vendita",yourOpay:"Il tuo saldo OPAY",yourUsdt:"Il tuo saldo USDT",spread:"Spread fisso del 2%",chartTitle:"Grafico prezzo OPAY TOKEN (Acquisto)",startP:"Inizio",currentP:"Attuale",totalGain:"Guadagno totale",platformInfo:"Informazioni sulla piattaforma",iT1:"Piattaforma sicura",iD1:"Negozia solo tramite questo sito",iT2:"Valore in crescita continua",iD2:"Prezzo giornaliero impostato dall'amministratore",iT3:"Transazioni istantanee",iD3:"Facile conversione tra USDT e OPAY TOKEN",iT4:"Spread fisso del 2%",iD4:"Differenza acquisto/vendita trasparente e fissa",exTitle:"Exchange",buyOpay:"▲ ACQUISTA OPAY",sellOpay:"▼ VENDI OPAY",amtBuy:"Quantità di OPAY da acquistare",amtSell:"Quantità di OPAY da vendere",willGet:"Riceverai",willPay:"Pagherai (USDT)",willSell:"Venderai",willGetU:"Riceverai (USDT)",minWarn:"⚠️ Prelievo minimo 10 USDT",btnBuy:"✅ ACQUISTA OPAY",btnSell:"💱 VENDI OPAY",errUsdt:"Saldo USDT insufficiente.",errOpay:"Saldo OPAY insufficiente.",errAmt:"Inserisci un importo valido.",errMinSell:"L'importo minimo di vendita deve essere 10 USDT.",msgBought:"✅ Hai acquistato {amt} OPAY. ({usdt} USDT)",msgSold:"✅ Hai venduto {amt} OPAY. ({usdt} USDT)",histTitle:"Cronologia transazioni",noHist:"Non hai ancora transazioni.",tagBuy:"▲ ACQUISTO",tagSell:"▼ VENDITA",adminPrice:"Aggiornamento prezzo giornaliero",curBuy:"Prezzo di acquisto attuale:",updateBtn:"Aggiorna prezzo",msgPriceOk:"✅ Prezzo aggiornato: Acquisto {buy} USDT | Vendita {sell} USDT",errPrice:"⚠️ Il nuovo prezzo deve essere superiore al prezzo di acquisto attuale.",phTitle:"Cronologia prezzi",dailyChg:"Variazione giornaliera",cntTitle:"Testo informazioni (modificabile)",saveBtn:"Salva modifiche",msgSaved:"✅ Informazioni aggiornate.",userTitle:"Gestione utenti",userDesc:"Visualizza tutti gli utenti e regola i loro saldi.",searchU:"Cerca per nome utente o e-mail…",cU:"Utente",cE:"E-mail",cO:"OPAY",cUsd:"USDT",cA:"Azioni",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"Regola saldo di",amtLbl:"Importo",applyBtn:"Applica",cancelBtn:"Annulla",msgBalOk:"✅ Saldo aggiornato.",noUsers:"Nessun utente trovato.",});
-D.id=make({login:"Masuk",register:"Daftar",username:"Nama pengguna",email:"Email",password:"Kata sandi",confirmPw:"Konfirmasi kata sandi",fullName:"Nama lengkap",loginBtn:"Masuk",registerBtn:"Buat akun",withEmail:"Lanjutkan dengan email",noAcc:"Belum punya akun?",haveAcc:"Sudah punya akun?",signUp:"Daftar",signIn:"Masuk",selectLang:"Bahasa",welcomeBack:"Selamat datang kembali",createAcc:"Buat akun Anda",tagline:"Platform OPAY TOKEN",errLogin:"Nama pengguna/email atau kata sandi salah.",errExists:"Nama pengguna atau email ini sudah terdaftar.",errFields:"Harap isi semua kolom.",errPwMatch:"Kata sandi tidak cocok.",errEmail:"Masukkan alamat email yang valid.",okRegister:"Akun berhasil dibuat! Anda sekarang dapat masuk.",dashboard:"Dasbor",exchange:"Exchange",history:"Riwayat",admin:"Admin",logout:"Keluar",buyPrice:"Harga Beli",sellPrice:"Harga Jual",yourOpay:"Saldo OPAY Anda",yourUsdt:"Saldo USDT Anda",spread:"Spread tetap 2%",chartTitle:"Grafik Harga OPAY TOKEN (Beli)",startP:"Awal",currentP:"Saat ini",totalGain:"Kenaikan Total",platformInfo:"Informasi Platform",iT1:"Platform Aman",iD1:"Hanya bertransaksi melalui situs ini",iT2:"Nilai yang Terus Bertumbuh",iD2:"Harga harian ditentukan oleh admin",iT3:"Transaksi Instan",iD3:"Konversi mudah antara USDT dan OPAY TOKEN",iT4:"Spread Tetap 2%",iD4:"Perbedaan beli/jual yang transparan dan tetap",exTitle:"Exchange",buyOpay:"▲ BELI OPAY",sellOpay:"▼ JUAL OPAY",amtBuy:"Jumlah OPAY yang akan dibeli",amtSell:"Jumlah OPAY yang akan dijual",willGet:"Anda akan menerima",willPay:"Anda akan membayar (USDT)",willSell:"Anda akan menjual",willGetU:"Anda akan menerima (USDT)",minWarn:"⚠️ Penarikan minimum 10 USDT",btnBuy:"✅ BELI OPAY",btnSell:"💱 JUAL OPAY",errUsdt:"Saldo USDT tidak cukup.",errOpay:"Saldo OPAY tidak cukup.",errAmt:"Masukkan jumlah yang valid.",errMinSell:"Jumlah penjualan minimum harus 10 USDT.",msgBought:"✅ Anda membeli {amt} OPAY. ({usdt} USDT)",msgSold:"✅ Anda menjual {amt} OPAY. ({usdt} USDT)",histTitle:"Riwayat Transaksi",noHist:"Anda belum memiliki transaksi.",tagBuy:"▲ BELI",tagSell:"▼ JUAL",adminPrice:"Pembaruan Harga Harian",curBuy:"Harga beli saat ini:",updateBtn:"Perbarui Harga",msgPriceOk:"✅ Harga diperbarui: Beli {buy} USDT | Jual {sell} USDT",errPrice:"⚠️ Harga baru harus lebih tinggi dari harga beli saat ini.",phTitle:"Riwayat Harga",dailyChg:"Perubahan Harian",cntTitle:"Teks Informasi Platform (dapat diedit)",saveBtn:"Simpan Perubahan",msgSaved:"✅ Informasi platform diperbarui.",userTitle:"Manajemen Pengguna",userDesc:"Lihat semua pengguna terdaftar dan sesuaikan saldo mereka.",searchU:"Cari berdasarkan nama pengguna atau email…",cU:"Pengguna",cE:"Email",cO:"OPAY",cUsd:"USDT",cA:"Tindakan",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"Sesuaikan saldo untuk",amtLbl:"Jumlah",applyBtn:"Terapkan",cancelBtn:"Batal",msgBalOk:"✅ Saldo diperbarui.",noUsers:"Tidak ada pengguna ditemukan.",});
-D.vi=make({login:"Đăng nhập",register:"Đăng ký",username:"Tên người dùng",email:"Email",password:"Mật khẩu",confirmPw:"Xác nhận mật khẩu",fullName:"Họ và tên",loginBtn:"Đăng nhập",registerBtn:"Tạo tài khoản",withEmail:"Tiếp tục với email",noAcc:"Chưa có tài khoản?",haveAcc:"Đã có tài khoản?",signUp:"Đăng ký",signIn:"Đăng nhập",selectLang:"Ngôn ngữ",welcomeBack:"Chào mừng trở lại",createAcc:"Tạo tài khoản của bạn",tagline:"Nền tảng OPAY TOKEN",errLogin:"Tên người dùng/email hoặc mật khẩu không đúng.",errExists:"Tên người dùng hoặc email này đã được đăng ký.",errFields:"Vui lòng điền đầy đủ các trường.",errPwMatch:"Mật khẩu không khớp.",errEmail:"Vui lòng nhập địa chỉ email hợp lệ.",okRegister:"Tạo tài khoản thành công! Bây giờ bạn có thể đăng nhập.",dashboard:"Bảng điều khiển",exchange:"Sàn giao dịch",history:"Lịch sử",admin:"Quản trị",logout:"Đăng xuất",buyPrice:"Giá mua",sellPrice:"Giá bán",yourOpay:"Số dư OPAY của bạn",yourUsdt:"Số dư USDT của bạn",spread:"Chênh lệch cố định 2%",chartTitle:"Biểu đồ giá OPAY TOKEN (Mua)",startP:"Bắt đầu",currentP:"Hiện tại",totalGain:"Tổng tăng",platformInfo:"Thông tin nền tảng",iT1:"Nền tảng an toàn",iD1:"Chỉ giao dịch qua trang web này",iT2:"Giá trị tăng liên tục",iD2:"Giá hàng ngày do quản trị viên thiết lập",iT3:"Giao dịch tức thì",iD3:"Chuyển đổi dễ dàng giữa USDT và OPAY TOKEN",iT4:"Chênh lệch cố định 2%",iD4:"Chênh lệch mua/bán minh bạch và cố định",exTitle:"Sàn giao dịch",buyOpay:"▲ MUA OPAY",sellOpay:"▼ BÁN OPAY",amtBuy:"Số lượng OPAY muốn mua",amtSell:"Số lượng OPAY muốn bán",willGet:"Bạn sẽ nhận được",willPay:"Bạn sẽ trả (USDT)",willSell:"Bạn sẽ bán",willGetU:"Bạn sẽ nhận (USDT)",minWarn:"⚠️ Rút tối thiểu 10 USDT",btnBuy:"✅ MUA OPAY",btnSell:"💱 BÁN OPAY",errUsdt:"Số dư USDT không đủ.",errOpay:"Số dư OPAY không đủ.",errAmt:"Vui lòng nhập số lượng hợp lệ.",errMinSell:"Số tiền bán tối thiểu phải là 10 USDT.",msgBought:"✅ Bạn đã mua {amt} OPAY. ({usdt} USDT)",msgSold:"✅ Bạn đã bán {amt} OPAY. ({usdt} USDT)",histTitle:"Lịch sử giao dịch",noHist:"Bạn chưa có giao dịch nào.",tagBuy:"▲ MUA",tagSell:"▼ BÁN",adminPrice:"Cập nhật giá hàng ngày",curBuy:"Giá mua hiện tại:",updateBtn:"Cập nhật giá",msgPriceOk:"✅ Giá đã được cập nhật: Mua {buy} USDT | Bán {sell} USDT",errPrice:"⚠️ Giá mới phải cao hơn giá mua hiện tại.",phTitle:"Lịch sử giá",dailyChg:"Biến động hàng ngày",cntTitle:"Văn bản thông tin nền tảng (có thể chỉnh sửa)",saveBtn:"Lưu thay đổi",msgSaved:"✅ Thông tin nền tảng đã được cập nhật.",userTitle:"Quản lý người dùng",userDesc:"Xem tất cả người dùng đã đăng ký và điều chỉnh số dư của họ.",searchU:"Tìm theo tên người dùng hoặc email…",cU:"Người dùng",cE:"Email",cO:"OPAY",cUsd:"USDT",cA:"Hành động",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"Điều chỉnh số dư cho",amtLbl:"Số lượng",applyBtn:"Áp dụng",cancelBtn:"Hủy",msgBalOk:"✅ Số dư đã được cập nhật.",noUsers:"Không tìm thấy người dùng.",});
-D.th=make({login:"เข้าสู่ระบบ",register:"สมัครสมาชิก",username:"ชื่อผู้ใช้",email:"อีเมล",password:"รหัสผ่าน",confirmPw:"ยืนยันรหัสผ่าน",fullName:"ชื่อ-นามสกุล",loginBtn:"เข้าสู่ระบบ",registerBtn:"สร้างบัญชี",withEmail:"ดำเนินการต่อด้วยอีเมล",noAcc:"ยังไม่มีบัญชี?",haveAcc:"มีบัญชีอยู่แล้ว?",signUp:"สมัครสมาชิก",signIn:"เข้าสู่ระบบ",selectLang:"ภาษา",welcomeBack:"ยินดีต้อนรับกลับ",createAcc:"สร้างบัญชีของคุณ",tagline:"แพลตฟอร์ม OPAY TOKEN",errLogin:"ชื่อผู้ใช้/อีเมลหรือรหัสผ่านไม่ถูกต้อง",errExists:"ชื่อผู้ใช้หรืออีเมลนี้ถูกลงทะเบียนแล้ว",errFields:"กรุณากรอกข้อมูลให้ครบทุกช่อง",errPwMatch:"รหัสผ่านไม่ตรงกัน",errEmail:"กรุณากรอกอีเมลที่ถูกต้อง",okRegister:"สร้างบัญชีสำเร็จแล้ว! ตอนนี้คุณสามารถเข้าสู่ระบบได้",dashboard:"แดชบอร์ด",exchange:"แลกเปลี่ยน",history:"ประวัติ",admin:"ผู้ดูแลระบบ",logout:"ออกจากระบบ",buyPrice:"ราคาซื้อ",sellPrice:"ราคาขาย",yourOpay:"ยอด OPAY ของคุณ",yourUsdt:"ยอด USDT ของคุณ",spread:"ส่วนต่างคงที่ 2%",chartTitle:"กราฟราคา OPAY TOKEN (ซื้อ)",startP:"เริ่มต้น",currentP:"ปัจจุบัน",totalGain:"เพิ่มขึ้นรวม",platformInfo:"ข้อมูลแพลตฟอร์ม",iT1:"แพลตฟอร์มปลอดภัย",iD1:"ซื้อขายได้เฉพาะผ่านเว็บไซต์นี้",iT2:"มูลค่าที่เติบโตต่อเนื่อง",iD2:"ราคารายวันกำหนดโดยผู้ดูแลระบบ",iT3:"ธุรกรรมทันที",iD3:"แปลงระหว่าง USDT และ OPAY TOKEN ได้ง่าย",iT4:"ส่วนต่างคงที่ 2%",iD4:"ส่วนต่างซื้อ/ขายที่โปร่งใสและคงที่",exTitle:"แลกเปลี่ยน",buyOpay:"▲ ซื้อ OPAY",sellOpay:"▼ ขาย OPAY",amtBuy:"จำนวน OPAY ที่จะซื้อ",amtSell:"จำนวน OPAY ที่จะขาย",willGet:"คุณจะได้รับ",willPay:"คุณจะจ่าย (USDT)",willSell:"คุณจะขาย",willGetU:"คุณจะได้รับ (USDT)",minWarn:"⚠️ ถอนขั้นต่ำ 10 USDT",btnBuy:"✅ ซื้อ OPAY",btnSell:"💱 ขาย OPAY",errUsdt:"ยอด USDT ไม่เพียงพอ",errOpay:"ยอด OPAY ไม่เพียงพอ",errAmt:"กรุณากรอกจำนวนที่ถูกต้อง",errMinSell:"จำนวนขายขั้นต่ำต้องเป็น 10 USDT",msgBought:"✅ คุณซื้อ {amt} OPAY แล้ว ({usdt} USDT)",msgSold:"✅ คุณขาย {amt} OPAY แล้ว ({usdt} USDT)",histTitle:"ประวัติการทำธุรกรรม",noHist:"คุณยังไม่มีประวัติธุรกรรม",tagBuy:"▲ ซื้อ",tagSell:"▼ ขาย",adminPrice:"อัปเดตราคาประจำวัน",curBuy:"ราคาซื้อปัจจุบัน:",updateBtn:"อัปเดตราคา",msgPriceOk:"✅ อัปเดตราคาแล้ว: ซื้อ {buy} USDT | ขาย {sell} USDT",errPrice:"⚠️ ราคาใหม่ต้องสูงกว่าราคาซื้อปัจจุบัน",phTitle:"ประวัติราคา",dailyChg:"การเปลี่ยนแปลงรายวัน",cntTitle:"ข้อความข้อมูลแพลตฟอร์ม (แก้ไขได้)",saveBtn:"บันทึกการเปลี่ยนแปลง",msgSaved:"✅ อัปเดตข้อมูลแพลตฟอร์มแล้ว",userTitle:"การจัดการผู้ใช้",userDesc:"ดูผู้ใช้ที่ลงทะเบียนทั้งหมดและปรับยอดคงเหลือ",searchU:"ค้นหาด้วยชื่อผู้ใช้หรืออีเมล…",cU:"ผู้ใช้",cE:"อีเมล",cO:"OPAY",cUsd:"USDT",cA:"การดำเนินการ",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"ปรับยอดคงเหลือสำหรับ",amtLbl:"จำนวน",applyBtn:"นำไปใช้",cancelBtn:"ยกเลิก",msgBalOk:"✅ อัปเดตยอดคงเหลือแล้ว",noUsers:"ไม่พบผู้ใช้",});
-D.hi=make({login:"लॉगिन",register:"रजिस्टर करें",username:"उपयोगकर्ता नाम",email:"ईमेल",password:"पासवर्ड",confirmPw:"पासवर्ड की पुष्टि करें",fullName:"पूरा नाम",loginBtn:"लॉगिन करें",registerBtn:"खाता बनाएं",withEmail:"ईमेल से जारी रखें",noAcc:"खाता नहीं है?",haveAcc:"पहले से खाता है?",signUp:"साइन अप करें",signIn:"साइन इन करें",selectLang:"भाषा",welcomeBack:"वापसी पर स्वागत है",createAcc:"अपना खाता बनाएं",tagline:"OPAY TOKEN प्लेटफ़ॉर्म",errLogin:"उपयोगकर्ता नाम/ईमेल या पासवर्ड गलत है।",errExists:"यह उपयोगकर्ता नाम या ईमेल पहले से पंजीकृत है।",errFields:"कृपया सभी फ़ील्ड भरें।",errPwMatch:"पासवर्ड मेल नहीं खाते।",errEmail:"कृपया एक मान्य ईमेल पता दर्ज करें।",okRegister:"खाता बनाया गया! अब आप लॉगिन कर सकते हैं।",dashboard:"डैशबोर्ड",exchange:"एक्सचेंज",history:"इतिहास",admin:"एडमिन",logout:"लॉगआउट",buyPrice:"खरीद मूल्य",sellPrice:"बिक्री मूल्य",yourOpay:"आपका OPAY बैलेंस",yourUsdt:"आपका USDT बैलेंस",spread:"निश्चित 2% स्प्रेड",chartTitle:"OPAY TOKEN मूल्य चार्ट (खरीद)",startP:"शुरुआत",currentP:"वर्तमान",totalGain:"कुल वृद्धि",platformInfo:"प्लेटफ़ॉर्म जानकारी",iT1:"सुरक्षित प्लेटफ़ॉर्म",iD1:"केवल इस साइट के माध्यम से व्यापार करें",iT2:"लगातार बढ़ता मूल्य",iD2:"प्रशासक द्वारा निर्धारित दैनिक मूल्य",iT3:"तत्काल लेनदेन",iD3:"USDT और OPAY TOKEN के बीच आसान रूपांतरण",iT4:"निश्चित 2% स्प्रेड",iD4:"पारदर्शी और निश्चित खरीद/बिक्री अंतर",exTitle:"एक्सचेंज",buyOpay:"▲ OPAY खरीदें",sellOpay:"▼ OPAY बेचें",amtBuy:"खरीदने के लिए OPAY की मात्रा",amtSell:"बेचने के लिए OPAY की मात्रा",willGet:"आपको मिलेगा",willPay:"आप भुगतान करेंगे (USDT)",willSell:"आप बेचेंगे",willGetU:"आपको मिलेगा (USDT)",minWarn:"⚠️ न्यूनतम निकासी 10 USDT",btnBuy:"✅ OPAY खरीदें",btnSell:"💱 OPAY बेचें",errUsdt:"अपर्याप्त USDT बैलेंस।",errOpay:"अपर्याप्त OPAY बैलेंस।",errAmt:"कृपया एक मान्य राशि दर्ज करें।",errMinSell:"न्यूनतम बिक्री राशि 10 USDT होनी चाहिए।",msgBought:"✅ आपने {amt} OPAY खरीदा। ({usdt} USDT)",msgSold:"✅ आपने {amt} OPAY बेचा। ({usdt} USDT)",histTitle:"लेनदेन इतिहास",noHist:"आपका अभी तक कोई लेनदेन नहीं है।",tagBuy:"▲ खरीद",tagSell:"▼ बिक्री",adminPrice:"दैनिक मूल्य अपडेट",curBuy:"वर्तमान खरीद मूल्य:",updateBtn:"मूल्य अपडेट करें",msgPriceOk:"✅ मूल्य अपडेट: खरीद {buy} USDT | बिक्री {sell} USDT",errPrice:"⚠️ नया मूल्य वर्तमान खरीद मूल्य से अधिक होना चाहिए।",phTitle:"मूल्य इतिहास",dailyChg:"दैनिक परिवर्तन",cntTitle:"प्लेटफ़ॉर्म जानकारी पाठ (संपादन योग्य)",saveBtn:"परिवर्तन सहेजें",msgSaved:"✅ प्लेटफ़ॉर्म जानकारी अपडेट की गई।",userTitle:"उपयोगकर्ता प्रबंधन",userDesc:"सभी पंजीकृत उपयोगकर्ताओं को देखें और बैलेंस समायोजित करें।",searchU:"उपयोगकर्ता नाम या ईमेल से खोजें…",cU:"उपयोगकर्ता",cE:"ईमेल",cO:"OPAY",cUsd:"USDT",cA:"कार्रवाई",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"बैलेंस समायोजित करें:",amtLbl:"राशि",applyBtn:"लागू करें",cancelBtn:"रद्द करें",msgBalOk:"✅ बैलेंस अपडेट किया गया।",noUsers:"कोई उपयोगकर्ता नहीं मिला।",});
-D.ar=make({login:"تسجيل الدخول",register:"إنشاء حساب",username:"اسم المستخدم",email:"البريد الإلكتروني",password:"كلمة المرور",confirmPw:"تأكيد كلمة المرور",fullName:"الاسم الكامل",loginBtn:"تسجيل الدخول",registerBtn:"إنشاء حساب",withEmail:"المتابعة بالبريد الإلكتروني",noAcc:"ليس لديك حساب؟",haveAcc:"لديك حساب بالفعل؟",signUp:"سجل الآن",signIn:"سجل الدخول",selectLang:"اللغة",welcomeBack:"مرحبًا بعودتك",createAcc:"أنشئ حسابك",tagline:"منصة OPAY TOKEN",errLogin:"اسم المستخدم/البريد الإلكتروني أو كلمة المرور غير صحيحة.",errExists:"اسم المستخدم أو البريد الإلكتروني هذا مسجل بالفعل.",errFields:"يرجى ملء جميع الحقول.",errPwMatch:"كلمتا المرور غير متطابقتين.",errEmail:"يرجى إدخال بريد إلكتروني صالح.",okRegister:"تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.",dashboard:"لوحة التحكم",exchange:"المنصة",history:"السجل",admin:"المسؤول",logout:"تسجيل الخروج",buyPrice:"سعر الشراء",sellPrice:"سعر البيع",yourOpay:"رصيدك من OPAY",yourUsdt:"رصيدك من USDT",spread:"فارق ثابت 2%",chartTitle:"مخطط سعر OPAY TOKEN (شراء)",startP:"البداية",currentP:"الحالي",totalGain:"إجمالي الارتفاع",platformInfo:"معلومات المنصة",iT1:"منصة آمنة",iD1:"التداول فقط عبر هذا الموقع",iT2:"قيمة في تزايد مستمر",iD2:"السعر اليومي يحدده المسؤول",iT3:"معاملات فورية",iD3:"تحويل سهل بين USDT و OPAY TOKEN",iT4:"فارق ثابت 2%",iD4:"فرق شراء/بيع شفاف وثابت",exTitle:"المنصة",buyOpay:"▲ شراء OPAY",sellOpay:"▼ بيع OPAY",amtBuy:"كمية OPAY المراد شراؤها",amtSell:"كمية OPAY المراد بيعها",willGet:"سوف تحصل على",willPay:"سوف تدفع (USDT)",willSell:"سوف تبيع",willGetU:"سوف تحصل على (USDT)",minWarn:"⚠️ الحد الأدنى للسحب 10 USDT",btnBuy:"✅ شراء OPAY",btnSell:"💱 بيع OPAY",errUsdt:"رصيد USDT غير كافٍ.",errOpay:"رصيد OPAY غير كافٍ.",errAmt:"يرجى إدخال مبلغ صالح.",errMinSell:"يجب أن يكون الحد الأدنى لمبلغ البيع 10 USDT.",msgBought:"✅ لقد اشتريت {amt} OPAY. ({usdt} USDT)",msgSold:"✅ لقد بعت {amt} OPAY. ({usdt} USDT)",histTitle:"سجل المعاملات",noHist:"ليس لديك معاملات بعد.",tagBuy:"▲ شراء",tagSell:"▼ بيع",adminPrice:"تحديث السعر اليومي",curBuy:"سعر الشراء الحالي:",updateBtn:"تحديث السعر",msgPriceOk:"✅ تم تحديث السعر: شراء {buy} USDT | بيع {sell} USDT",errPrice:"⚠️ يجب أن يكون السعر الجديد أعلى من سعر الشراء الحالي.",phTitle:"سجل الأسعار",dailyChg:"التغير اليومي",cntTitle:"نص معلومات المنصة (قابل للتحرير)",saveBtn:"حفظ التغييرات",msgSaved:"✅ تم تحديث معلومات المنصة.",userTitle:"إدارة المستخدمين",userDesc:"عرض جميع المستخدمين المسجلين وتعديل أرصدتهم.",searchU:"بحث باسم المستخدم أو البريد الإلكتروني…",cU:"المستخدم",cE:"البريد الإلكتروني",cO:"OPAY",cUsd:"USDT",cA:"إجراءات",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"تعديل الرصيد لـ",amtLbl:"المبلغ",applyBtn:"تطبيق",cancelBtn:"إلغاء",msgBalOk:"✅ تم تحديث الرصيد.",noUsers:"لم يتم العثور على مستخدمين.",});
-D.pl=make({login:"Zaloguj się",register:"Zarejestruj się",username:"Nazwa użytkownika",email:"E-mail",password:"Hasło",confirmPw:"Potwierdź hasło",fullName:"Imię i nazwisko",loginBtn:"Zaloguj się",registerBtn:"Utwórz konto",withEmail:"Kontynuuj z e-mailem",noAcc:"Nie masz konta?",haveAcc:"Masz już konto?",signUp:"Zarejestruj się",signIn:"Zaloguj się",selectLang:"Język",welcomeBack:"Witaj ponownie",createAcc:"Utwórz swoje konto",tagline:"Platforma OPAY TOKEN",errLogin:"Nieprawidłowa nazwa użytkownika/e-mail lub hasło.",errExists:"Ta nazwa użytkownika lub e-mail jest już zarejestrowana.",errFields:"Proszę wypełnić wszystkie pola.",errPwMatch:"Hasła nie pasują do siebie.",errEmail:"Proszę podać prawidłowy adres e-mail.",okRegister:"Konto zostało pomyślnie utworzone! Możesz się teraz zalogować.",dashboard:"Panel",exchange:"Exchange",history:"Historia",admin:"Admin",logout:"Wyloguj się",buyPrice:"Cena kupna",sellPrice:"Cena sprzedaży",yourOpay:"Twoje saldo OPAY",yourUsdt:"Twoje saldo USDT",spread:"Stały spread 2%",chartTitle:"Wykres ceny OPAY TOKEN (Kupno)",startP:"Początek",currentP:"Aktualna",totalGain:"Całkowity wzrost",platformInfo:"Informacje o platformie",iT1:"Bezpieczna platforma",iD1:"Handluj tylko za pośrednictwem tej strony",iT2:"Stale rosnąca wartość",iD2:"Codzienna cena ustalana przez administratora",iT3:"Natychmiastowe transakcje",iD3:"Łatwa konwersja między USDT a OPAY TOKEN",iT4:"Stały spread 2%",iD4:"Przejrzysta i stała różnica kupna/sprzedaży",exTitle:"Exchange",buyOpay:"▲ KUP OPAY",sellOpay:"▼ SPRZEDAJ OPAY",amtBuy:"Ilość OPAY do kupienia",amtSell:"Ilość OPAY do sprzedania",willGet:"Otrzymasz",willPay:"Zapłacisz (USDT)",willSell:"Sprzedasz",willGetU:"Otrzymasz (USDT)",minWarn:"⚠️ Minimalna wypłata to 10 USDT",btnBuy:"✅ KUP OPAY",btnSell:"💱 SPRZEDAJ OPAY",errUsdt:"Niewystarczające saldo USDT.",errOpay:"Niewystarczające saldo OPAY.",errAmt:"Proszę wprowadzić prawidłową kwotę.",errMinSell:"Minimalna kwota sprzedaży musi wynosić 10 USDT.",msgBought:"✅ Kupiłeś {amt} OPAY. ({usdt} USDT)",msgSold:"✅ Sprzedałeś {amt} OPAY. ({usdt} USDT)",histTitle:"Historia transakcji",noHist:"Nie masz jeszcze żadnych transakcji.",tagBuy:"▲ KUPNO",tagSell:"▼ SPRZEDAŻ",adminPrice:"Codzienna aktualizacja ceny",curBuy:"Aktualna cena kupna:",updateBtn:"Aktualizuj cenę",msgPriceOk:"✅ Cena zaktualizowana: Kupno {buy} USDT | Sprzedaż {sell} USDT",errPrice:"⚠️ Nowa cena musi być wyższa niż aktualna cena kupna.",phTitle:"Historia cen",dailyChg:"Zmiana dzienna",cntTitle:"Tekst informacyjny platformy (edytowalny)",saveBtn:"Zapisz zmiany",msgSaved:"✅ Informacje o platformie zaktualizowane.",userTitle:"Zarządzanie użytkownikami",userDesc:"Przeglądaj wszystkich użytkowników i dostosowuj ich salda.",searchU:"Szukaj po nazwie użytkownika lub e-mailu…",cU:"Użytkownik",cE:"E-mail",cO:"OPAY",cUsd:"USDT",cA:"Akcje",addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",adjFor:"Dostosuj saldo dla",amtLbl:"Kwota",applyBtn:"Zastosuj",cancelBtn:"Anuluj",msgBalOk:"✅ Saldo zaktualizowane.",noUsers:"Nie znaleziono użytkowników.",});
+    <script type="text/babel">
+        const { useState } = React;
 
-function i(lang,key,vars){
-  const dict=D[lang]||D.en;
-  let s=dict[key]??D.en[key]??key;
-  if(vars) Object.keys(vars).forEach(k=>{s=s.replace(`{${k}}`,vars[k]);});
-  return s;
-}
+        const LANGS = [
+          { code:"en", flag:"🇺🇸", label:"English" },
+          { code:"tr", flag:"🇹🇷", label:"Türkçe" },
+          { code:"es", flag:"🇪🇸", label:"Español" },
+          { code:"pt", flag:"🇧🇷", label:"Português (Brasil)" },
+          { code:"fr", flag:"🇫🇷", label:"Français" },
+          { code:"de", flag:"🇩🇪", label:"Deutsch" },
+          { code:"ru", flag:"🇷🇺", label:"Русский" },
+          { code:"ja", flag:"🇯🇵", label:"日本語" },
+          { code:"ko", flag:"🇰🇷", label:"한국어" },
+          { code:"zh", flag:"🇨🇳", label:"简体中文" },
+          { code:"it", flag:"🇮🇹", label:"Italiano" },
+          { code:"id", flag:"🇮🇩", label:"Bahasa Indonesia" },
+          { code:"vi", flag:"🇻🇳", label:"Tiếng Việt" },
+          { code:"th", flag:"🇹🇭", label:"ไทย" },
+          { code:"hi", flag:"🇮🇳", label:"हिन्दी" },
+          { code:"ar", flag:"🇸🇦", label:"العربية" },
+          { code:"pl", flag:"🇵🇱", label:"Polski" }
+        ];
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
-const PRICE_HIST=[
-  {date:"2025-01-01",buy:1.000,sell:0.980},{date:"2025-02-01",buy:1.100,sell:1.078},
-  {date:"2025-03-01",buy:1.210,sell:1.1858},{date:"2025-04-01",buy:1.305,sell:1.2789},
-  {date:"2025-05-10",buy:1.420,sell:1.3916},{date:"2025-06-01",buy:1.485,sell:1.4553},
-  {date:"2025-07-01",buy:1.555,sell:1.5239},{date:"2025-08-01",buy:1.632,sell:1.5994},
-  {date:"2025-09-01",buy:1.715,sell:1.6807},{date:"2025-10-01",buy:1.803,sell:1.7669},
-  {date:"2025-11-01",buy:1.897,sell:1.8591},{date:"2025-12-01",buy:1.997,sell:1.9571},
-  {date:"2026-01-01",buy:2.103,sell:2.0609},{date:"2026-02-01",buy:2.215,sell:2.1707},
-  {date:"2026-03-01",buy:2.334,sell:2.2873},{date:"2026-04-01",buy:2.460,sell:2.4108},
-  {date:"2026-05-01",buy:2.593,sell:2.5411},{date:"2026-06-01",buy:2.733,sell:2.6783},
-  {date:"2026-06-29",buy:2.850,sell:2.793},
-];
+        const D = {
+          en: { login: "Login", register: "Register", username: "Username", email: "Email", password: "Password", confirmPw: "Confirm Password", adminTitle: "Admin Dashboard" },
+          tr: { login: "Giriş Yap", register: "Kayıt Ol", username: "Kullanıcı Adı", email: "E-posta", password: "Şifre", confirmPw: "Şifreyi Onayla", adminTitle: "Yönetici Paneli" }
+        };
 
-const INIT_USERS={
-  admin:{password:"admin123",name:"Admin",email:"admin@opay.com",usdt:10000,opay:5000,isAdmin:true},
-  user1:{password:"pass123",name:"Ahmet Yılmaz",email:"ahmet@email.com",usdt:500,opay:120,isAdmin:false},
-};
+        const s = {
+          card: { background: "#ffffff", padding: "24px", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)", boxSizing: "border-box" },
+          inp: { width: "100%", padding: "12px", marginBottom: "12px", borderRadius: "6px", border: "1px solid #d1d5db", boxSizing: "border-box" },
+          btn: (type) => ({ padding: "12px 20px", background: type === "primary" ? "#2563eb" : "#4b5563", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", width: "100%" })
+        };
 
-const INIT_TX=[
-  {id:1,user:"user1",type:"buy",opay:50,usdt:142.5,price:2.85,date:"2026-06-28 14:22"},
-  {id:2,user:"user1",type:"sell",opay:20,usdt:55.86,price:2.793,date:"2026-06-27 09:11"},
-];
+        function App() {
+          const [lang, setLang] = useState("tr");
+          const [mode, setMode] = useState("login");
+          const [user, setUser] = useState("");
+          const [email, setEmail] = useState("");
+          const [pw, setPw] = useState("");
+          const [cpw, setCpw] = useState("");
+          const [isAuthed, setIsAuthed] = useState(false);
 
-const DEFAULT_PLATFORM_CARDS=(lang)=>[
-  {icon:"🔒",title:i(lang,"iT1"),desc:i(lang,"iD1")},
-  {icon:"📈",title:i(lang,"iT2"),desc:i(lang,"iD2")},
-  {icon:"⚡",title:i(lang,"iT3"),desc:i(lang,"iD3")},
-  {icon:"💱",title:i(lang,"iT4"),desc:i(lang,"iD4")},
-];
+          const T = (key) => D[lang]?.[key] || D["en"][key] || key;
 
-// ─── CHART ───────────────────────────────────────────────────────────────────
-function PriceChart({history}){
-  const W=600,H=190,PL=52,PT=12,PR=16,PB=34;
-  const pw=W-PL-PR,ph=H-PT-PB;
-  const prices=history.map(h=>h.buy);
-  const mn=Math.min(...prices)*0.97,mx=Math.max(...prices)*1.02;
-  const x=(i)=>PL+i*(pw/(history.length-1));
-  const y=(v)=>PT+ph-((v-mn)/(mx-mn))*ph;
-  const pts=history.map((_,i)=>[x(i),y(history[i].buy)]);
-  const line=pts.map((p,i)=>`${i===0?"M":"L"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-  const area=`${line} L${pts[pts.length-1][0]},${PT+ph} L${pts[0][0]},${PT+ph} Z`;
-  const ticks=[mn,(mn+mx)/2,mx];
-  const labs=[0,Math.floor(history.length/2),history.length-1];
-  return(
-    <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height:"auto",display:"block"}}>
-      <defs>
-        <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#00C896" stopOpacity="0.3"/>
-          <stop offset="100%" stopColor="#00C896" stopOpacity="0.02"/>
-        </linearGradient>
-      </defs>
-      {ticks.map((t,i)=>(
-        <g key={i}>
-          <line x1={PL} y1={y(t)} x2={PL+pw} y2={y(t)} stroke="#ffffff0d" strokeWidth="1"/>
-          <text x={PL-5} y={y(t)+4} textAnchor="end" fill="#556" fontSize="10">${t.toFixed(2)}</text>
-        </g>
-      ))}
-      {labs.map(i=>(
-        <text key={i} x={x(i)} y={H-4} textAnchor="middle" fill="#445" fontSize="9">{history[i].date.slice(0,7)}</text>
-      ))}
-      <path d={area} fill="url(#cg)"/>
-      <path d={line} fill="none" stroke="#00C896" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx={pts[pts.length-1][0]} cy={pts[pts.length-1][1]} r="4" fill="#00C896" stroke="#0a1628" strokeWidth="2"/>
-    </svg>
-  );
-}
-
-// ─── LANG PICKER ─────────────────────────────────────────────────────────────
-function LangPicker({lang,setLang,t}){
-  const [open,setOpen]=useState(false);
-  const cur=LANGS.find(l=>l.code===lang)||LANGS[0];
-  return(
-    <div style={{position:"relative"}}>
-      <button onClick={()=>setOpen(!open)} style={{background:"#0d1a2d",border:"1px solid #1a2d4a",borderRadius:8,padding:"7px 12px",color:"#8a9ab8",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6}}>
-        <span>{cur.flag}</span><span style={{maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cur.label}</span><span style={{fontSize:10}}>▾</span>
-      </button>
-      {open&&(
-        <div style={{position:"absolute",right:0,top:"calc(100% + 4px)",background:"#0d1a2d",border:"1px solid #1a2d4a",borderRadius:10,zIndex:999,maxHeight:320,overflowY:"auto",width:200,boxShadow:"0 8px 32px #00000060"}}>
-          {LANGS.map(l=>(
-            <div key={l.code} onClick={()=>{setLang(l.code);setOpen(false);}}
-              style={{padding:"9px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:13,color:l.code===lang?"#00C896":"#c0cce0",background:l.code===lang?"#00C89610":"transparent",transition:"background 0.1s"}}
-              onMouseEnter={e=>e.currentTarget.style.background="#ffffff08"}
-              onMouseLeave={e=>e.currentTarget.style.background=l.code===lang?"#00C89610":"transparent"}>
-              <span>{l.flag}</span><span>{l.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function App(){
-  const [lang,setLang]=useState("en");
-  const [users,setUsers]=useState(INIT_USERS);
-  const [txs,setTxs]=useState(INIT_TX);
-  const [prices,setPrices]=useState(PRICE_HIST);
-  const [platformCards,setPlatformCards]=useState(null);
-  const [session,setSession]=useState(null);
-  const [page,setPage]=useState("dashboard");
-  // auth
-  const [authMode,setAuthMode]=useState("login");
-  const [aUser,setAUser]=useState("");
-  const [aEmail,setAEmail]=useState("");
-  const [aName,setAName]=useState("");
-  const [aPw,setAPw]=useState("");
-  const [aCPw,setACPw]=useState("");
-  const [aErr,setAErr]=useState("");
-  const [aOk,setAOk]=useState("");
-  // exchange
-  const [exMode,setExMode]=useState("buy");
-  const [exAmt,setExAmt]=useState("");
-  const [exMsg,setExMsg]=useState("");
-  // admin price
-  const [newP,setNewP]=useState("");
-  const [prMsg,setPrMsg]=useState("");
-  // admin content
-  const [editCards,setEditCards]=useState(null);
-  const [cntMsg,setCntMsg]=useState("");
-  // admin users
-  const [uSearch,setUSearch]=useState("");
-  const [adjUser,setAdjUser]=useState(null);
-  const [adjType,setAdjType]=useState("");
-  const [adjAmt,setAdjAmt]=useState("");
-  const [adjMsg,setAdjMsg]=useState("");
-  // admin tab
-  const [adminTab,setAdminTab]=useState("price");
-
-  const rtl=RTL.includes(lang);
-  const cur=session?users[session]:null;
-  const last=prices[prices.length-1];
-  const buyP=last.buy,sellP=last.sell;
-  const prev=prices[prices.length-2]?.buy||buyP;
-  const chgPct=((buyP-prev)/prev*100).toFixed(2);
-  const isUp=parseFloat(chgPct)>=0;
-  const cards=platformCards||DEFAULT_PLATFORM_CARDS(lang);
-
-  const T=(key,vars)=>i(lang,key,vars);
-
-  // ── AUTH ──
-  function doLogin(){
-    setAErr("");setAOk("");
-    if(!aUser||!aPw){setAErr(T("errFields"));return;}
-    const u=Object.entries(users).find(([k,v])=>(k===aUser||v.email===aUser)&&v.password===aPw);
-    if(!u){setAErr(T("errLogin"));return;}
-    setSession(u[0]);setPage("dashboard");
-    setAUser("");setAPw("");
-  }
-  function doRegister(){
-    setAErr("");setAOk("");
-    if(!aName||!aUser||!aEmail||!aPw||!aCPw){setAErr(T("errFields"));return;}
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(aEmail)){setAErr(T("errEmail"));return;}
-    if(aPw!==aCPw){setAErr(T("errPwMatch"));return;}
-    if(users[aUser]||Object.values(users).find(v=>v.email===aEmail)){setAErr(T("errExists"));return;}
-    setUsers(prev=>({...prev,[aUser]:{password:aPw,name:aName,email:aEmail,usdt:0,opay:0,isAdmin:false}}));
-    setAOk(T("okRegister"));setAuthMode("login");
-    setAUser("");setAPw("");setACPw("");setAName("");setAEmail("");
-  }
-  function doLogout(){setSession(null);setPage("dashboard");setExMsg("");}
-
-  // ── EXCHANGE ──
-  function doExchange(){
-    const amt=parseFloat(exAmt);
-    if(!amt||amt<=0){setExMsg(T("errAmt"));return;}
-    const u={...users[session]};
-    if(exMode==="buy"){
-      const cost=amt*buyP;
-      if(cost>u.usdt){setExMsg(T("errUsdt"));return;}
-      u.usdt-=cost;u.opay+=amt;
-      setTxs(p=>[{id:Date.now(),user:session,type:"buy",opay:amt,usdt:cost,price:buyP,date:new Date().toISOString().slice(0,16).replace("T"," ")},...p]);
-      setExMsg(T("msgBought",{amt:amt.toFixed(2),usdt:cost.toFixed(4)}));
-    }else{
-      if(amt>u.opay){setExMsg(T("errOpay"));return;}
-      const get=amt*sellP;
-      if(get<10){setExMsg(T("errMinSell"));return;}
-      u.opay-=amt;u.usdt+=get;
-      setTxs(p=>[{id:Date.now(),user:session,type:"sell",opay:amt,usdt:get,price:sellP,date:new Date().toISOString().slice(0,16).replace("T"," ")},...p]);
-      setExMsg(T("msgSold",{amt:amt.toFixed(2),usdt:get.toFixed(4)}));
-    }
-    setUsers(p=>({...p,[session]:u}));setExAmt("");
-  }
-
-  // ── ADMIN PRICE ──
-  function doUpdatePrice(){
-    const p=parseFloat(newP);
-    if(!p||p<=buyP){setPrMsg(T("errPrice"));return;}
-    const s=parseFloat((p*0.98).toFixed(4));
-    const today=new Date().toISOString().slice(0,10);
-    setPrices(prev=>[...prev,{date:today,buy:p,sell:s}]);
-    setPrMsg(T("msgPriceOk",{buy:p,sell:s}));setNewP("");
-  }
-
-  // ── ADMIN CONTENT ──
-  function startEditCards(){setEditCards(JSON.parse(JSON.stringify(cards)));}
-  function saveCards(){setPlatformCards(editCards);setEditCards(null);setCntMsg(T("msgSaved"));}
-
-  // ── ADMIN BALANCE ──
-  function openAdj(uname,type){setAdjUser(uname);setAdjType(type);setAdjAmt("");setAdjMsg("");}
-  function doAdj(){
-    const amt=parseFloat(adjAmt);
-    if(!amt||amt<0){setAdjMsg("Enter valid amount.");return;}
-    setUsers(prev=>{
-      const u={...prev[adjUser]};
-      if(adjType==="addO") u.opay+=amt;
-      else if(adjType==="remO") u.opay=Math.max(0,u.opay-amt);
-      else if(adjType==="addU") u.usdt+=amt;
-      else if(adjType==="remU") u.usdt=Math.max(0,u.usdt-amt);
-      return {...prev,[adjUser]:u};
-    });
-    setAdjMsg(T("msgBalOk"));setAdjAmt("");
-  }
-
-  // ── STYLES ──
-  const s={
-    app:{minHeight:"100vh",background:"#060d1a",color:"#dde4f0",fontFamily:"'Inter',system-ui,sans-serif",fontSize:14,direction:rtl?"rtl":"ltr"},
-    hdr:{background:"#0b1525",borderBottom:"1px solid #172340",padding:"0 20px",display:"flex",alignItems:"center",justifyContent:"space-between",height:58,gap:12},
-    logo:{display:"flex",alignItems:"center",gap:9},
-    logoIco:{width:34,height:34,background:"linear-gradient(135deg,#00C896,#0066cc)",borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color:"#fff",flexShrink:0},
-    logoTxt:{fontWeight:700,fontSize:17,letterSpacing:"-0.4px",color:"#fff"},
-    nav:{display:"flex",gap:2},
-    navB:(a)=>({background:a?"#00C89615":"transparent",color:a?"#00C896":"#6a7fa0",border:"none",borderRadius:7,padding:"6px 13px",cursor:"pointer",fontSize:13,fontWeight:a?600:400,transition:"all 0.15s"}),
-    main:{maxWidth:900,margin:"0 auto",padding:"24px 14px"},
-    card:{background:"#0b1525",border:"1px solid #172340",borderRadius:14,padding:22,marginBottom:18},
-    ct:{fontSize:11,fontWeight:600,letterSpacing:"0.08em",color:"#3a5a8a",textTransform:"uppercase",marginBottom:14},
-    row:{display:"flex",gap:14,flexWrap:"wrap"},
-    stat:{flex:1,minWidth:130,background:"#080f1c",border:"1px solid #172340",borderRadius:11,padding:16},
-    sl:{fontSize:11,color:"#3a5a8a",fontWeight:600,letterSpacing:"0.05em",marginBottom:5},
-    sv:{fontSize:24,fontWeight:700,color:"#dde4f0",letterSpacing:"-0.4px"},
-    ss:{fontSize:11,color:"#3a5a8a",marginTop:3},
-    G:{color:"#00C896"},R:{color:"#f04060"},O:{color:"#ff9f4a"},
-    inp:{background:"#050c18",border:"1px solid #172340",borderRadius:8,padding:"9px 13px",color:"#dde4f0",fontSize:14,width:"100%",outline:"none",boxSizing:"border-box"},
-    btn:(v="primary")=>({
-      background:v==="primary"?"linear-gradient(135deg,#00C896,#0088cc)":v==="sell"?"linear-gradient(135deg,#f04060,#aa1133)":v==="ghost"?"#172340":"#172340",
-      color:"#fff",border:"none",borderRadius:8,padding:"10px 20px",cursor:"pointer",fontSize:14,fontWeight:600,transition:"opacity 0.15s",flexShrink:0
-    }),
-    seg:(a,v="buy")=>({flex:1,padding:"9px 0",border:"none",borderRadius:7,cursor:"pointer",fontWeight:600,fontSize:13,background:a?(v==="buy"?"linear-gradient(135deg,#00C896,#0088cc)":"linear-gradient(135deg,#f04060,#aa1133)"):"#080f1c",color:a?"#fff":"#3a5a8a",transition:"all 0.15s"}),
-    tbl:{width:"100%",borderCollapse:"collapse"},
-    th:{textAlign:"left",fontSize:11,fontWeight:600,color:"#3a5a8a",letterSpacing:"0.06em",padding:"5px 9px",borderBottom:"1px solid #172340"},
-    td:{padding:"10px 9px",borderBottom:"1px solid #0b1525",fontSize:13},
-    tag:(t)=>({display:"inline-block",padding:"2px 9px",borderRadius:20,fontSize:11,fontWeight:600,background:t==="buy"?"#00C89615":"#f0406015",color:t==="buy"?"#00C896":"#f04060"}),
-    msg:(ok)=>({marginTop:10,padding:"9px 13px",borderRadius:8,fontSize:13,background:ok?"#00C89615":"#f0406015",color:ok?"#00C896":"#f04060"}),
-    note:{background:"#080f1c",border:"1px solid #172340",borderRadius:9,padding:14,fontSize:12,lineHeight:1.8,color:"#6a7fa0",whiteSpace:"pre-wrap"},
-    aTab:(a)=>({border:"none",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:a?600:400,background:a?"#00C89620":"transparent",color:a?"#00C896":"#6a7fa0"}),
-  };
-
-  // ── LOGIN / REGISTER PAGE ──
-  if(!session){
-    return(
-      <div style={s.app} onClick={()=>{}}>
-        {/* Header with lang picker only */}
-        <div style={s.hdr}>
-          <div style={s.logo}>
-            <div style={s.logoIco}>OP</div>
-            <span style={s.logoTxt}>OPAY TOKEN</span>
-          </div>
-          <LangPicker lang={lang} setLang={setLang} t={T}/>
-        </div>
-
-        <div style={{maxWidth:400,margin:"60px auto 0",padding:"0 14px"}}>
-          <div style={{...s.card,textAlign:"center",padding:32}}>
-            <div style={{...s.logoIco,width:54,height:54,fontSize:22,margin:"0 auto 14px"}}> OP</div>
-            <div style={{fontWeight:700,fontSize:21,color:"#fff",marginBottom:4}}>
-              {authMode==="login"?T("welcomeBack"):T("createAcc")}
-            </div>
-            <div style={{color:"#3a5a8a",fontSize:13,marginBottom:24}}>{T("tagline")}</div>
-
-            {authMode==="register"&&(
-              <div style={{marginBottom:11}}>
-                <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5,textAlign:"left"}}>{T("fullName")}</div>
-                <input style={s.inp} placeholder="John Doe" value={aName} onChange={e=>{setAName(e.target.value);setAErr("");}}/>
+          return (
+            <div style={{ padding: "20px", maxWidth: "400px", margin: "40px auto" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+                <h2>OPAY</h2>
+                <select value={lang} onChange={e => setLang(e.target.value)}>
+                  {LANGS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
+                </select>
               </div>
-            )}
-            <div style={{marginBottom:11}}>
-              <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5,textAlign:"left"}}>{T("username")}</div>
-              <input style={s.inp} placeholder="username" value={aUser} onChange={e=>{setAUser(e.target.value);setAErr("");}} onKeyDown={e=>e.key==="Enter"&&(authMode==="login"?doLogin():doRegister())}/>
-            </div>
-            {authMode==="register"&&(
-              <div style={{marginBottom:11}}>
-                <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5,textAlign:"left"}}>{T("email")}</div>
-                <input style={s.inp} type="email" placeholder="you@email.com" value={aEmail} onChange={e=>{setAEmail(e.target.value);setAErr("");}}/>
-              </div>
-            )}
-            <div style={{marginBottom:11}}>
-              <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5,textAlign:"left"}}>{T("password")}</div>
-              <input style={s.inp} type="password" placeholder="••••••••" value={aPw} onChange={e=>{setAPw(e.target.value);setAErr("");}} onKeyDown={e=>e.key==="Enter"&&(authMode==="login"?doLogin():doRegister())}/>
-            </div>
-            {authMode==="register"&&(
-              <div style={{marginBottom:11}}>
-                <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5,textAlign:"left"}}>{T("confirmPw")}</div>
-                <input style={s.inp} type="password" placeholder="••••••••" value={aCPw} onChange={e=>{setACPw(e.target.value);setAErr("");}} onKeyDown={e=>e.key==="Enter"&&doRegister()}/>
-              </div>
-            )}
-            {aErr&&<div style={s.msg(false)}>{aErr}</div>}
-            {aOk&&<div style={s.msg(true)}>{aOk}</div>}
-            <button style={{...s.btn("primary"),width:"100%",marginTop:16}} onClick={authMode==="login"?doLogin:doRegister}>
-              {authMode==="login"?T("loginBtn"):T("registerBtn")}
-            </button>
-            <div style={{marginTop:16,fontSize:13,color:"#3a5a8a"}}>
-              {authMode==="login"?T("noAcc"):T("haveAcc")}{" "}
-              <span style={{color:"#00C896",cursor:"pointer",fontWeight:600}} onClick={()=>{setAuthMode(authMode==="login"?"register":"login");setAErr("");setAOk("");}}>
-                {authMode==="login"?T("signUp"):T("signIn")}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
-  // ── LOGGED IN ──
-  const myTx=txs.filter(t=>t.user===session);
-  const navItems=[
-    {id:"dashboard",label:T("dashboard")},
-    {id:"exchange",label:T("exchange")},
-    {id:"history",label:T("history")},
-    ...(cur.isAdmin?[{id:"admin",label:"⚙️ "+T("admin")}]:[]),
-  ];
-  const filteredUsers=Object.entries(users).filter(([k])=>k!=="admin"?true:true).filter(([k,v])=>
-    k.toLowerCase().includes(uSearch.toLowerCase())||v.email.toLowerCase().includes(uSearch.toLowerCase())||v.name.toLowerCase().includes(uSearch.toLowerCase())
-  );
-
-  return(
-    <div style={s.app}>
-      <div style={s.hdr}>
-        <div style={s.logo}>
-          <div style={s.logoIco}>OP</div>
-          <span style={s.logoTxt}>OPAY TOKEN</span>
-        </div>
-        <div style={s.nav}>
-          {navItems.map(n=>(
-            <button key={n.id} style={s.navB(page===n.id)} onClick={()=>{setPage(n.id);setExMsg("");setPrMsg("");setCntMsg("");setAdjMsg("");}}>
-              {n.label}
-            </button>
-          ))}
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <LangPicker lang={lang} setLang={setLang}/>
-          <span style={{fontSize:12,color:"#3a5a8a"}}>👤 {cur.name}</span>
-          <button style={s.btn("ghost")} onClick={doLogout}>{T("logout")}</button>
-        </div>
-      </div>
-
-      <div style={s.main}>
-
-        {/* ── DASHBOARD ── */}
-        {page==="dashboard"&&(
-          <>
-            <div style={s.row}>
-              <div style={s.stat}><div style={s.sl}>{T("buyPrice")}</div><div style={{...s.sv,...s.G}}>${buyP.toFixed(4)}</div><div style={s.ss}><span style={isUp?s.G:s.R}>{isUp?"▲":"▼"} {Math.abs(chgPct)}%</span> {T("lastUpdate")}</div></div>
-              <div style={s.stat}><div style={s.sl}>{T("sellPrice")}</div><div style={{...s.sv,...s.O}}>${sellP.toFixed(4)}</div><div style={s.ss}>{T("spread")}</div></div>
-              <div style={s.stat}><div style={s.sl}>{T("yourOpay")}</div><div style={s.sv}>{cur.opay.toFixed(2)}</div><div style={{...s.ss,...s.G}}>≈ ${(cur.opay*sellP).toFixed(2)} USDT</div></div>
-              <div style={s.stat}><div style={s.sl}>{T("yourUsdt")}</div><div style={s.sv}>{cur.usdt.toFixed(2)}</div><div style={s.ss}>Tether USD</div></div>
-            </div>
-
-            <div style={s.card}>
-              <div style={s.ct}>{T("chartTitle")}</div>
-              <PriceChart history={prices}/>
-              <div style={{display:"flex",justifyContent:"space-between",marginTop:10,fontSize:12,color:"#3a5a8a"}}>
-                <span>{T("startP")}: $1.000</span>
-                <span>{T("currentP")}: <span style={s.G}>${buyP.toFixed(4)}</span></span>
-                <span>{T("totalGain")}: <span style={s.G}>+{((buyP/1.000-1)*100).toFixed(1)}%</span></span>
-              </div>
-            </div>
-
-            <div style={s.card}>
-              <div style={s.ct}>{T("platformInfo")}</div>
-              <div style={{...s.row,gap:10}}>
-                {cards.map((c,i)=>(
-                  <div key={i} style={{flex:1,minWidth:150,background:"#060d1a",borderRadius:10,padding:14}}>
-                    <div style={{fontSize:22,marginBottom:6}}>{c.icon}</div>
-                    <div style={{fontWeight:600,fontSize:13,marginBottom:4}}>{c.title}</div>
-                    <div style={{fontSize:12,color:"#3a5a8a"}}>{c.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ── EXCHANGE ── */}
-        {page==="exchange"&&(
-          <div style={{maxWidth:480,margin:"0 auto"}}>
-            <div style={s.card}>
-              <div style={s.ct}>{T("exTitle")}</div>
-              <div style={{...s.row,gap:10,marginBottom:18}}>
-                <div style={{flex:1,background:"#060d1a",borderRadius:10,padding:12,textAlign:"center"}}>
-                  <div style={{fontSize:11,color:"#3a5a8a",marginBottom:3}}>{T("buyPrice")}</div>
-                  <div style={{fontWeight:700,fontSize:18,...s.G}}>${buyP.toFixed(4)}</div>
+              {!isAuthed ? (
+                <div style={s.card}>
+                  <h3>{mode === "login" ? T("login") : T("register")}</h3>
+                  <input style={s.inp} placeholder={T("username")} value={user} onChange={e=>setUser(e.target.value)}/>
+                  {mode === "register" && <input style={s.inp} type="email" placeholder={T("email")} value={email} onChange={e=>setEmail(e.target.value)}/>}
+                  <input style={s.inp} type="password" placeholder={T("password")} value={pw} onChange={e=>setPw(e.target.value)}/>
+                  {mode === "register" && <input style={s.inp} type="password" placeholder={T("confirmPw")} value={cpw} onChange={e=>setCpw(e.target.value)}/>}
+                  <button style={s.btn("primary")} onClick={() => setIsAuthed(true)}>{mode === "login" ? T("login") : T("register")}</button>
+                  <p onClick={() => setMode(mode === "login" ? "register" : "login")} style={{color: "#2563eb", cursor: "pointer", marginTop: "15px", textAlign: "center"}}>
+                    {mode === "login" ? "Hesap Oluştur" : "Giriş Yap"}
+                  </p>
                 </div>
-                <div style={{flex:1,background:"#060d1a",borderRadius:10,padding:12,textAlign:"center"}}>
-                  <div style={{fontSize:11,color:"#3a5a8a",marginBottom:3}}>{T("sellPrice")}</div>
-                  <div style={{fontWeight:700,fontSize:18,...s.O}}>${sellP.toFixed(4)}</div>
-                </div>
-              </div>
-              <div style={{background:"#060d1a",borderRadius:10,padding:13,marginBottom:16,fontSize:13}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{color:"#3a5a8a"}}>{T("opayBal")}:</span><span style={{fontWeight:600}}>{cur.opay.toFixed(2)} OPAY</span></div>
-                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#3a5a8a"}}>{T("usdtBal")}:</span><span style={{fontWeight:600}}>{cur.usdt.toFixed(2)} USDT</span></div>
-              </div>
-              <div style={{display:"flex",gap:5,marginBottom:14,background:"#060d1a",borderRadius:10,padding:4}}>
-                <button style={s.seg(exMode==="buy","buy")} onClick={()=>{setExMode("buy");setExMsg("");setExAmt("");}}>{T("buyOpay")}</button>
-                <button style={s.seg(exMode==="sell","sell")} onClick={()=>{setExMode("sell");setExMsg("");setExAmt("");}}>{T("sellOpay")}</button>
-              </div>
-              <div style={{marginBottom:12}}>
-                <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5}}>{exMode==="buy"?T("amtBuy"):T("amtSell")}</div>
-                <input style={s.inp} type="number" min="0" placeholder="0.00" value={exAmt} onChange={e=>{setExAmt(e.target.value);setExMsg("");}}/>
-              </div>
-              {exAmt&&parseFloat(exAmt)>0&&(
-                <div style={{background:"#060d1a",borderRadius:10,padding:13,marginBottom:14,fontSize:13}}>
-                  {exMode==="buy"?(
-                    <>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{color:"#3a5a8a"}}>{T("willGet")}:</span><span style={{...s.G,fontWeight:700}}>{parseFloat(exAmt).toFixed(2)} OPAY</span></div>
-                      <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#3a5a8a"}}>{T("willPay")}:</span><span style={{fontWeight:700}}>{(parseFloat(exAmt)*buyP).toFixed(4)} USDT</span></div>
-                    </>
-                  ):(
-                    <>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{color:"#3a5a8a"}}>{T("willSell")}:</span><span style={{...s.O,fontWeight:700}}>{parseFloat(exAmt).toFixed(2)} OPAY</span></div>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{color:"#3a5a8a"}}>{T("willGetU")}:</span><span style={{fontWeight:700}}>{(parseFloat(exAmt)*sellP).toFixed(4)} USDT</span></div>
-                      {parseFloat(exAmt)*sellP<10&&<div style={{...s.msg(false),padding:"5px 9px",marginTop:4}}>{T("minWarn")}</div>}
-                    </>
-                  )}
+              ) : (
+                <div style={s.card}>
+                  <h3>{T("adminTitle")}</h3>
+                  <p>Hoş geldiniz, @{user}!</p>
+                  <button style={s.btn("secondary")} onClick={() => setIsAuthed(false)}>Çıkış Yap</button>
                 </div>
               )}
-              <button style={{...s.btn(exMode==="buy"?"primary":"sell"),width:"100%"}} onClick={doExchange}>
-                {exMode==="buy"?T("btnBuy"):T("btnSell")}
-              </button>
-              {exMsg&&<div style={s.msg(exMsg.startsWith("✅"))}>{exMsg}</div>}
             </div>
-          </div>
-        )}
+          );
+        }
 
-        {/* ── HISTORY ── */}
-        {page==="history"&&(
-          <div style={s.card}>
-            <div style={s.ct}>{T("histTitle")}</div>
-            {myTx.length===0?(
-              <div style={{textAlign:"center",color:"#3a5a8a",padding:"36px 0",fontSize:14}}>{T("noHist")}</div>
-            ):(
-              <div style={{overflowX:"auto"}}>
-                <table style={s.tbl}>
-                  <thead><tr>{[T("colType"),T("colDate"),T("colOpay"),T("colUsdt"),T("colPrice")].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
-                  <tbody>
-                    {myTx.map(tx=>(
-                      <tr key={tx.id}>
-                        <td style={s.td}><span style={s.tag(tx.type)}>{tx.type==="buy"?T("tagBuy"):T("tagSell")}</span></td>
-                        <td style={{...s.td,color:"#3a5a8a"}}>{tx.date}</td>
-                        <td style={s.td}>{tx.opay.toFixed(2)}</td>
-                        <td style={s.td}>{tx.usdt.toFixed(4)}</td>
-                        <td style={{...s.td,...(tx.type==="buy"?s.G:s.O)}}>${tx.price.toFixed(4)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── ADMIN ── */}
-        {page==="admin"&&cur.isAdmin&&(
-          <>
-            <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
-              {["price","content","users"].map(t=>(
-                <button key={t} style={s.aTab(adminTab===t)} onClick={()=>setAdminTab(t)}>
-                  {t==="price"?"📈 "+T("adminPrice"):t==="content"?"✏️ "+T("cntTitle").split("(")[0].trim():"👥 "+T("userTitle")}
-                </button>
-              ))}
-            </div>
-
-            {/* PRICE TAB */}
-            {adminTab==="price"&&(
-              <>
-                <div style={s.card}>
-                  <div style={s.ct}>{T("adminPrice")}</div>
-                  <div style={s.row}>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:13,marginBottom:8}}><span style={{color:"#3a5a8a"}}>{T("curBuy")} </span><span style={{...s.G,fontWeight:700}}>${buyP.toFixed(4)}</span></div>
-                      <div style={{fontSize:12,color:"#3a5a8a",marginBottom:7}}>{T("newBuyLbl")}</div>
-                      <input style={{...s.inp,marginBottom:10}} type="number" step="0.0001" min={buyP} placeholder={(buyP*1.01).toFixed(4)} value={newP} onChange={e=>setNewP(e.target.value)}/>
-                      {newP&&parseFloat(newP)>buyP&&(
-                        <div style={{background:"#060d1a",borderRadius:8,padding:11,fontSize:13,marginBottom:10}}>
-                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{color:"#3a5a8a"}}>{T("newBuyRow")}</span><span style={{...s.G,fontWeight:700}}>${parseFloat(newP).toFixed(4)}</span></div>
-                          <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#3a5a8a"}}>{T("newSellRow")}</span><span style={{...s.O,fontWeight:700}}>${(parseFloat(newP)*0.98).toFixed(4)}</span></div>
-                        </div>
-                      )}
-                      <button style={{...s.btn("primary"),width:"100%"}} onClick={doUpdatePrice}>{T("updateBtn")}</button>
-                      {prMsg&&<div style={s.msg(prMsg.startsWith("✅"))}>{prMsg}</div>}
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={s.note}><b style={s.G}>{T("guideTitle")}</b>{"\n\n"}{T("guideBody")}</div>
-                    </div>
-                  </div>
-                </div>
-                <div style={s.card}>
-                  <div style={s.ct}>{T("phTitle")}</div>
-                  <PriceChart history={prices}/>
-                  <div style={{overflowX:"auto",marginTop:14}}>
-                    <table style={s.tbl}>
-                      <thead><tr>{["Date","Buy","Sell",T("dailyChg")].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
-                      <tbody>
-                        {[...prices].reverse().slice(0,10).map((p,i,arr)=>{
-                          const prev2=arr[i+1];
-                          const chg=prev2?((p.buy-prev2.buy)/prev2.buy*100).toFixed(2):"—";
-                          return(
-                            <tr key={i}>
-                              <td style={{...s.td,color:"#3a5a8a"}}>{p.date}</td>
-                              <td style={{...s.td,...s.G}}>${p.buy.toFixed(4)}</td>
-                              <td style={{...s.td,...s.O}}>${p.sell.toFixed(4)}</td>
-                              <td style={s.td}>{chg!=="—"?<span style={parseFloat(chg)>=0?s.G:s.R}>{parseFloat(chg)>=0?"+":""}{chg}%</span>:"—"}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* CONTENT TAB */}
-            {adminTab==="content"&&(
-              <div style={s.card}>
-                <div style={s.ct}>{T("cntTitle")}</div>
-                <div style={{fontSize:13,color:"#3a5a8a",marginBottom:16}}>{T("cntDesc")}</div>
-                {!editCards?(
-                  <>
-                    <div style={{...s.row,gap:10,marginBottom:16}}>
-                      {cards.map((c,i)=>(
-                        <div key={i} style={{flex:1,minWidth:150,background:"#060d1a",borderRadius:10,padding:14}}>
-                          <div style={{fontSize:22,marginBottom:6}}>{c.icon}</div>
-                          <div style={{fontWeight:600,fontSize:13,marginBottom:4}}>{c.title}</div>
-                          <div style={{fontSize:12,color:"#3a5a8a"}}>{c.desc}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <button style={s.btn("primary")} onClick={startEditCards}>✏️ Edit</button>
-                    {cntMsg&&<div style={s.msg(true)}>{cntMsg}</div>}
-                  </>
-                ):(
-                  <>
-                    {editCards.map((c,i)=>(
-                      <div key={i} style={{background:"#060d1a",borderRadius:10,padding:14,marginBottom:10}}>
-                        <div style={{...s.row,gap:8,alignItems:"center"}}>
-                          <input style={{...s.inp,width:60,flexShrink:0}} value={c.icon} onChange={e=>{const n=[...editCards];n[i]={...n[i],icon:e.target.value};setEditCards(n);}}/>
-                          <input style={{...s.inp,flex:1}} value={c.title} onChange={e=>{const n=[...editCards];n[i]={...n[i],title:e.target.value};setEditCards(n);}}/>
-                        </div>
-                        <textarea style={{...s.inp,marginTop:8,resize:"vertical",minHeight:60}} value={c.desc} onChange={e=>{const n=[...editCards];n[i]={...n[i],desc:e.target.value};setEditCards(n);}}/>
-                      </div>
-                    ))}
-                    <div style={{display:"flex",gap:8,marginTop:4}}>
-                      <button style={s.btn("primary")} onClick={saveCards}>{T("saveBtn")}</button>
-                      <button style={s.btn("ghost")} onClick={()=>setEditCards(null)}>{T("cancelBtn")}</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* USERS TAB */}
-            {adminTab==="users"&&(
-              <div style={s.card}>
-                <div style={s.ct}>{T("userTitle")}</div>
-                <div style={{fontSize:13,color:"#3a5a8a",marginBottom:14}}>{T("userDesc")}</div>
-                <input style={{...s.inp,marginBottom:16}} placeholder={T("searchU")} value={uSearch} onChange={e=>setUSearch(e.target.value)}/>
-                {filteredUsers.length===0?(
-                  <div style={{textAlign:"center",color:"#3a5a8a",padding:"24px 0"}}>{T("noUsers")}</div>
-                ):(
-                  <div style={{overflowX:"auto"}}>
-                    <table style={s.tbl}>
-                      <thead><tr>{[T("cU"),T("cE"),T("cO"),T("cUsd"),T("cA")].map(h=><th key={h} style={s.th}>{h}</th>)}</tr></thead>
-                      <tbody>
-                        {filteredUsers.map(([k,v])=>(
-                          <tr key={k}>
-                            <td style={s.td}><div style={{fontWeight:600}}>{v.name}</div><div style={{fontSize:11,color:"#3a5a8a"}}>@{k}{v.isAdmin?" 🔑":""}</div></td>
-                            <td style={{...s.td,color:"#3a5a8a",fontSize:12}}>{v.email}</td>
-                            <td style={{...s.td,...s.G}}>{v.opay.toFixed(2)}</td>
-                            <td style={s.td}>{v.usdt.toFixed(2)}</td>
-                            <td style={s.td}>
-                              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                                {[["addO",T("addO"),"primary"],["remO",T("remO"),"sell"],["addU",T("addU"),"primary"],["remU",T("remU"),"sell"]].map(([type,label,variant])=>(
-                                  <button key={type} style={{...s.btn(variant),padding:"4px 9px",fontSize:11}} onClick={()=>openAdj(k,type)}>{label}</button>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* BALANCE ADJUST MODAL */}
-                {adjUser&&(
-                  <div style={{position:"fixed",inset:0,background:"#000000a0",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
-                    <div style={{...s.card,width:340,margin:0}}>
-                      <div style={{fontWeight:600,marginBottom:14}}>{T("adjFor")} @{adjUser}</div>
-                      <div style={{fontSize:12,color:"#3a5a8a",marginBottom:6}}>{T("amtLbl")}</div>
-                      <input style={{...s.inp,marginBottom:12}} type="number" min="0" placeholder="0.00" value={adjAmt} onChange={e=>setAdjAmt(e.target.value)}/>
-                      {adjMsg&&<div style={s.msg(adjMsg.startsWith("✅"))}>{adjMsg}</div>}
-                      <div style={{display:"flex",gap:8,marginTop:12}}>
-                        <button style={{...s.btn("primary"),flex:1}} onClick={doAdj}>{T("applyBtn")}</button>
-                        <button style={{...s.btn("ghost"),flex:1}} onClick={()=>{setAdjUser(null);setAdjMsg("");}}>{T("cancelBtn")}</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+        // Hatalardan arındırılmış başlatma kodu
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
