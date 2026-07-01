@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Opay</title>
+    <title>Opay - Yönetici Paneli</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f3f4f6;">
+<body class="bg-gray-50 text-gray-900 m-0 p-0 font-sans">
 
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState } = React;
 
+        // ─── Claude Orijinal Dil Ayarları ───────────────────────────────────────────
         const LANGS = [
           { code:"en", flag:"🇺🇸", label:"English" },
           { code:"tr", flag:"🇹🇷", label:"Türkçe" },
@@ -32,18 +34,43 @@
           { code:"th", flag:"🇹🇭", label:"ไทย" },
           { code:"hi", flag:"🇮🇳", label:"हिन्दी" },
           { code:"ar", flag:"🇸🇦", label:"العربية" },
-          { code:"pl", flag:"🇵🇱", label:"Polski" }
+          { code:"pl", flag:"🇵🇱", label:"Polski" },
         ];
+        const RTL = ["ar"];
 
         const D = {
-          en: { login: "Login", register: "Register", username: "Username", email: "Email", password: "Password", confirmPw: "Confirm Password", adminTitle: "Admin Dashboard" },
-          tr: { login: "Giriş Yap", register: "Kayıt Ol", username: "Kullanıcı Adı", email: "E-posta", password: "Şifre", confirmPw: "Şifreyi Onayla", adminTitle: "Yönetici Paneli" }
+          en:{
+            login:"Login",register:"Register",username:"Username",email:"Email",password:"Password",
+            confirmPw:"Confirm Password",noAcc:"Don't have an account?",haveAcc:"Already have an account?",
+            wrongPw:"Passwords do not match",adminTitle:"Admin Dashboard",searchUser:"Search username...",
+            userTh:"User",statusTh:"Status",actionsTh:"Actions",adjFor:"Adjust Balance for",
+            amtLbl:"Amount (USDT)",applyBtn:"Apply",cancelBtn:"Cancel"
+          },
+          tr:{
+            login:"Giriş Yap",register:"Kayıt Ol",username:"Kullanıcı Adı",email:"E-posta",password:"Şifre",
+            confirmPw:"Şifreyi Onayla",noAcc:"Hesabınız yok mu?",haveAcc:"Zaten hesabınız var mı?",
+            wrongPw:"Şifreler eşleşmiyor",adminTitle:"Yönetici Paneli",searchUser:"Kullanıcı adı ara...",
+            userTh:"Kullanıcı",statusTh:"Durum",actionsTh:"İşlemler",adjFor:"Bakiye Düzenle:",
+            amtLbl:"Miktar (USDT)",applyBtn:"Uygula",cancelBtn:"İptal"
+          }
         };
 
+        // ─── Claude Orijinal Tema ve Stil Dosyası ────────────────────────────────────
         const s = {
-          card: { background: "#ffffff", padding: "24px", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)", boxSizing: "border-box" },
-          inp: { width: "100%", padding: "12px", marginBottom: "12px", borderRadius: "6px", border: "1px solid #d1d5db", boxSizing: "border-box" },
-          btn: (type) => ({ padding: "12px 20px", background: type === "primary" ? "#2563eb" : "#4b5563", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", width: "100%" })
+          card: { background: "#ffffff", padding: "24px", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" },
+          inp: { width: "100%", padding: "12px", marginBottom: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#f8fafc", transition: "all 0.2s" },
+          btn: (type) => ({
+            padding: "12px 20px",
+            background: type === "primary" ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)" : type === "ghost" ? "#f1f5f9" : "#475569",
+            color: type === "ghost" ? "#334155" : "#fff",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontWeight: "600",
+            width: "100%",
+            boxShadow: type === "primary" ? "0 4px 10px rgba(59, 130, 246, 0.3)" : "none"
+          }),
+          msg: (success) => ({ color: success ? "#10b981" : "#ef4444", fontSize: "14px", marginTop: "6px" })
         };
 
         function App() {
@@ -54,42 +81,131 @@
           const [pw, setPw] = useState("");
           const [cpw, setCpw] = useState("");
           const [isAuthed, setIsAuthed] = useState(false);
+          const [search, setSearch] = useState("");
+          const [adjUser, setAdjUser] = useState(null);
+          const [adjAmt, setAdjAmt] = useState("");
+          const [adjMsg, setAdjMsg] = useState("");
+          
+          // Orijinal mock kullanıcı listesi
+          const [mockUsers, setMockUsers] = useState([
+            { id: 1, name: "can_turkmen", email: "can@star-media.com", balance: "1500.00", status: "Active" },
+            { id: 2, name: "alex_99", email: "alex@opay.com", balance: "450.00", status: "Active" },
+            { id: 3, name: "somchai_th", email: "somchai@star-media.com", balance: "0.00", status: "Pending" }
+          ]);
 
           const T = (key) => D[lang]?.[key] || D["en"][key] || key;
+          const isRtl = RTL.includes(lang);
+
+          const handleAuth = (e) => {
+            e.preventDefault();
+            if(mode === "register" && pw !== cpw) {
+              alert(T("wrongPw"));
+              return;
+            }
+            setIsAuthed(true);
+          };
+
+          const doAdj = () => {
+            if(!adjAmt || isNaN(adjAmt)) {
+              setAdjMsg("❌ Geçersiz miktar");
+              return;
+            }
+            setMockUsers(mockUsers.map(u => u.name === adjUser ? { ...u, balance: parseFloat(adjAmt).toFixed(2) } : u));
+            setAdjMsg("✅ Bakiye güncellendi!");
+            setTimeout(() => { setAdjUser(null); setAdjMsg(""); setAdjAmt(""); }, 1000);
+          };
 
           return (
-            <div style={{ padding: "20px", maxWidth: "400px", margin: "40px auto" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
-                <h2>OPAY</h2>
-                <select value={lang} onChange={e => setLang(e.target.value)}>
-                  {LANGS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
-                </select>
+            <div dir={isRtl ? "rtl" : "ltr"} class="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-50">
+              <div class="sm:mx-auto sm:w-full sm:max-w-md px-4">
+                <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                  <h1 class="text-2xl font-black tracking-wider text-blue-600 m-0">OPAY</h1>
+                  <select value={lang} onChange={e => setLang(e.target.value)} class="bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-sm font-medium text-slate-700 outline-none">
+                    {LANGS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
+                  </select>
+                </div>
               </div>
 
-              {!isAuthed ? (
-                <div style={s.card}>
-                  <h3>{mode === "login" ? T("login") : T("register")}</h3>
-                  <input style={s.inp} placeholder={T("username")} value={user} onChange={e=>setUser(e.target.value)}/>
-                  {mode === "register" && <input style={s.inp} type="email" placeholder={T("email")} value={email} onChange={e=>setEmail(e.target.value)}/>}
-                  <input style={s.inp} type="password" placeholder={T("password")} value={pw} onChange={e=>setPw(e.target.value)}/>
-                  {mode === "register" && <input style={s.inp} type="password" placeholder={T("confirmPw")} value={cpw} onChange={e=>setCpw(e.target.value)}/>}
-                  <button style={s.btn("primary")} onClick={() => setIsAuthed(true)}>{mode === "login" ? T("login") : T("register")}</button>
-                  <p onClick={() => setMode(mode === "login" ? "register" : "login")} style={{color: "#2563eb", cursor: "pointer", marginTop: "15px", textAlign: "center"}}>
-                    {mode === "login" ? "Hesap Oluştur" : "Giriş Yap"}
-                  </p>
-                </div>
-              ) : (
-                <div style={s.card}>
-                  <h3>{T("adminTitle")}</h3>
-                  <p>Hoş geldiniz, @{user}!</p>
-                  <button style={s.btn("secondary")} onClick={() => setIsAuthed(false)}>Çıkış Yap</button>
+              <div class="sm:mx-auto sm:w-full sm:max-w-md px-4">
+                {!isAuthed ? (
+                  <div style={s.card} class="border border-slate-100">
+                    <h2 class="text-xl font-bold text-slate-800 mb-6">{mode === "login" ? T("login") : T("register")}</h2>
+                    <form onSubmit={handleAuth}>
+                      <input style={s.inp} placeholder={T("username")} value={user} onChange={e=>setUser(e.target.value)} required />
+                      {mode === "register" && <input style={s.inp} type="email" placeholder={T("email")} value={email} onChange={e=>setEmail(e.target.value)} required />}
+                      <input style={s.inp} type="password" placeholder={T("password")} value={pw} onChange={e=>setPw(e.target.value)} required />
+                      {mode === "register" && <input style={s.inp} type="password" placeholder={T("confirmPw")} value={cpw} onChange={e=>setCpw(e.target.value)} required />}
+                      <button type="submit" style={s.btn("primary")} class="hover:opacity-90 active:scale-[0.98] transition-all">{mode === "login" ? T("login") : T("register")}</button>
+                    </form>
+                    <p onClick={() => setMode(mode === "login" ? "register" : "login")} class="text-center text-sm text-blue-600 font-semibold mt-5 cursor-pointer hover:underline">
+                      {mode === "login" ? T("noAcc") : T("haveAcc")}
+                    </p>
+                  </div>
+                ) : (
+                  <div style={s.card} class="w-full sm:max-w-3xl sm:mx-auto border border-slate-100 !p-6">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                      <h2 class="text-xl font-bold text-slate-800">{T("adminTitle")}</h2>
+                      <button onClick={() => setIsAuthed(false)} class="bg-rose-50 text-rose-600 font-semibold px-4 py-2 rounded-lg text-sm hover:bg-rose-100 transition-colors">Çıkış Yap</button>
+                    </div>
+
+                    <div class="mb-4">
+                      <input style={s.inp} placeholder={T("searchUser")} value={search} onChange={e => setSearch(e.target.value)} class="!mb-0" />
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-100">
+                      <table class="w-full text-left border-collapse bg-white">
+                        <thead>
+                          <tr class="bg-slate-50 border-b border-slate-100 text-slate-600 font-semibold text-sm">
+                            <th class="p-4">{T("userTh")}</th>
+                            <th class="p-4">Bakiye</th>
+                            <th class="p-4">{T("statusTh")}</th>
+                            <th class="p-4 text-right">{T("actionsTh")}</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm">
+                          {mockUsers.filter(u => u.name.toLowerCase().includes(search.toLowerCase())).map(u => (
+                            <tr key={u.id} class="hover:bg-slate-50/50 transition-colors">
+                              <td class="p-4">
+                                <div class="font-bold text-slate-800">@{u.name}</div>
+                                <div class="text-xs text-slate-400 mt-0.5">{u.email}</div>
+                              </td>
+                              <td class="p-4 font-bold text-emerald-600">{u.balance} USDT</td>
+                              <td class="p-4">
+                                <span class={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${u.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                  {u.status}
+                                </span>
+                              </td>
+                              <td class="p-4 text-right">
+                                <button onClick={() => { setAdjUser(u.name); setAdjAmt(u.balance); }} class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors">Düzenle</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* MODAL WINDOW */}
+              {adjUser && (
+                <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div style={s.card} class="w-full max-w-sm animate-in fade-in zoom-in-95 duration-150">
+                    <div class="font-bold text-slate-800 mb-4 text-lg border-b border-slate-100 pb-2">{T("adjFor")} @{adjUser}</div>
+                    <div class="text-xs font-bold text-slate-500 mb-2">{T("amtLbl")}</div>
+                    <input style={s.inp} type="number" step="0.01" placeholder="0.00" value={adjAmt} onChange={e=>setAdjAmt(e.target.value)} class="text-lg font-semibold" />
+                    {adjMsg && <div style={s.msg(adjMsg.startsWith("✅"))} class="font-medium text-center p-2 rounded-lg bg-slate-50">{adjMsg}</div>}
+                    <div class="flex gap-3 mt-5">
+                      <button style={s.btn("primary")} onClick={doAdj} class="!w-1/2">{T("applyBtn")}</button>
+                      <button style={s.btn("ghost")} onClick={() => { setAdjUser(null); setAdjMsg(""); }} class="!w-1/2">{T("cancelBtn")}</button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
           );
         }
 
-        // Hatalardan arındırılmış başlatma kodu
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
