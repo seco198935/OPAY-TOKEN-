@@ -1,277 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Opay - Token Platform</title>
-    <!-- Kararlı React ve Babel Bağlantıları -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- image_5.png Koyu Temasının Birebir Renk Kodları (CSS Olarak Gömdüm) -->
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #0b1329; /* Orijinal Lacivert Arka Plan */
-            color: #e2e8f0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .container {
-            width: 100%;
-            max-width: 400px;
-            padding: 16px;
-            box-sizing: border-box;
-        }
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .mini-logo {
-            background: linear-gradient(135deg, #00b4d8 0%, #02c39a 100%);
-            color: white;
-            font-weight: 900;
-            padding: 6px 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            letter-spacing: 0.5px;
-        }
-        .brand-text {
-            font-size: 18px;
-            font-weight: 700;
-            color: white;
-            letter-spacing: 0.5px;
-        }
-        .lang-select {
-            background-color: #1a233d;
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            color: #cbd5e1;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            outline: none;
-            cursor: pointer;
-        }
-        .login-card {
-            background-color: #111a33; /* Tam olarak görseldeki kart rengi */
-            border: 1px solid rgba(148, 163, 184, 0.1);
-            border-radius: 20px;
-            padding: 32px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-            text-align: center;
-        }
-        .main-logo {
-            width: 64px;
-            height: 64px;
-            background: linear-gradient(135deg, #00b4d8 0%, #02c39a 100%);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-            font-weight: 900;
-            margin: 0 auto 16px auto;
-            box-shadow: 0 10px 15px -3px rgba(0, 180, 216, 0.2);
-        }
-        .welcome-text {
-            font-size: 24px;
-            font-weight: 700;
-            color: white;
-            margin: 0 0 4px 0;
-        }
-        .tagline {
-            font-size: 12px;
-            color: #38bdf8;
-            font-weight: 500;
-            margin: 0 0 24px 0;
-            letter-spacing: 0.5px;
-        }
-        .input-group {
-            text-align: left;
-            margin-bottom: 16px;
-        }
-        .input-label {
-            display: block;
-            font-size: 12px;
-            font-weight: 600;
-            color: #94a3b8;
-            margin-bottom: 6px;
-        }
-        .custom-input {
-            width: 100%;
-            background-color: #090f1f; /* Görseldeki koyu input rengi */
-            border: 1px solid #1e293b;
-            border-radius: 12px;
-            padding: 12px 16px;
-            font-size: 14px;
-            color: white;
-            box-sizing: border-box;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .custom-input:focus {
-            border-color: #00b4d8;
-        }
-        .submit-btn {
-            width: 100%;
-            background: linear-gradient(135deg, #00b4d8 0%, #02c39a 100%); /* Turkuaz-yeşil buton */
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 14px;
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            margin-top: 8px;
-            box-shadow: 0 10px 15px -3px rgba(2, 195, 154, 0.2);
-            transition: opacity 0.2s;
-        }
-        .submit-btn:hover {
-            opacity: 0.95;
-        }
-        .switch-mode {
-            font-size: 13px;
-            color: #94a3b8;
-            margin-top: 24px;
-            cursor: pointer;
-        }
-        .switch-link {
-            color: #02c39a;
-            font-weight: 700;
-            margin-left: 4px;
-        }
-        .switch-link:hover {
-            text-decoration: underline;
-        }
-    </style>
-</head>
-<body>
+import { useState } from "react";
 
-    <div id="root" class="container"></div>
+// ─── LANGUAGES ───────────────────────────────────────────────────────────────
+const LANGS = [\n  { code:\"en\", flag:\"🇺🇸\", label:\"English\" },\n  { code:\"tr\", flag:\"🇹🇷\", label:\"Türkçe\" },\n  { code:\"es\", flag:\"🇪🇸\", label:\"Español\" },\n  { code:\"pt\", flag:\"🇧🇷\", label:\"Português (Brasil)\" },\n  { code:\"fr\", flag:\"🇫🇷\", label:\"Français\" },\n  { code:\"de\", flag:\"🇩🇪\", label:\"Deutsch\" },\n  { code:\"ru\", flag:\"🇷🇺\", label:\"Русский\" },\n  { code:\"ja\", flag:\"🇯🇵\", label:\"日本語\" },\n  { code:\"ko\", flag:\"🇰🇷\", label:\"한국어\" },\n  { code:\"zh\", flag:\"🇨🇳\", label:\"简体中文\" },\n  { code:\"it\", flag:\"🇮🇹\", label:\"Italiano\" },\n  { code:\"id\", flag:\"🇮🇩\", label:\"Bahasa Indonesia\" },\n  { code:\"vi\", flag:\"🇻🇳\", label:\"Tiếng Việt\" },\n  { code:\"th\", flag:\"🇹🇭\", label:\"ไทย\" },\n  { code:\"hi\", flag:\"🇮🇳\", label:\"हिन्दी\" },\n  { code:\"ar\", flag:\"🇸🇦\", label:\"العربية\" },\n  { code:\"pl\", flag:\"🇵🇱\", label:\"Polski\" },\n];
+const RTL = [\"ar\"];
 
-    <script type="text/babel">
-        const { useState } = React;
+const D = {
+  en:{
+    login:"Login",register:"Register",username:"Username",email:"Email",password:"Password",
+    confirmPw:"Confirm Password",noAccount:"Don't have an account?",haveAccount:"Already have an account?",
+    welcome:"Welcome",logout:"Logout",adminPan:"Admin Panel",usrList:"User List",adjFor:"Adjust Balance for",
+    amtLbl:"Amount to Add/Deduct (use negative to deduct):",applyBtn:"Apply",cancelBtn:"Cancel",
+    searchPlh:"Search username...",roleAdmin:"Admin",roleUser:"User",actView:"View Activities",
+    actFor:"Activities for",noAct:"No activities found for this user.",colUser:"User",colMail:"Email",
+    colBal:"Balance",colRole:"Role",colAct:"Actions",adjBal:"Adjust Balance",invite:"Invite",
+    invTitle:"Invite Users",invEmailPlh:"Enter email address...",invBtn:"Send Invite",invSuccess:"Invitation sent successfully!",
+    invHistory:"Sent Invitations",invColEmail:"Email",invColStatus:"Status",invStatusPending:"Pending",invStatusJoined:"Joined"
+  },
+  tr:{
+    login:"Giriş Yap",register:"Kayıt Ol",username:"Kullanıcı Adı",email:"E-posta",password:"Şifre",
+    confirmPw:"Şifreyi Onayla",noAccount:"Hesabınız yok mu?",haveAccount:"Zaten hesabınız var mı?",
+    welcome:"Hoş geldiniz",logout:"Çıkış Yap",adminPan:"Yönetim Paneli",usrList:"Kullanıcı Listesi",adjFor:"Bakiye Düzenle:",
+    amtLbl:"Eklenecek/Düşülecek Miktar (azaltmak için eksi değer girin):",applyBtn:"Uygula",cancelBtn:"İptal",
+    searchPlh:"Kullanıcı adı ara...",roleAdmin:"Yönetici",roleUser:"Kullanıcı",actView:"Aktiviteleri Gör",
+    actFor:"Aktiviteleri:",noAct:"Bu kullanıcıya ait aktivite bulunamadı.",colUser:"Kullanıcı",colMail:"E-posta",
+    colBal:"Bakiye",colRole:"Rol",colAct:"İşlemler",adjBal:"Bakiyeyi Düzenle",invite:"Davet Et",
+    invTitle:"Kullanıcıları Davet Et",invEmailPlh:"E-posta adresi girin...",invBtn:"Davet Gönder",invSuccess:"Davet başarıyla gönderildi!",
+    invHistory:"Gönderilen Davetler",invColEmail:"E-posta",invColStatus:"Durum",invStatusPending:"Beklemede",invStatusJoined:"Katıldı"
+  }
+};
 
-        const LANGS = [
-          { code:"en", flag:"🇺🇸", label:"English" },
-          { code:"tr", flag:"🇹🇷", label:"Türkçe" },
-          { code:"es", flag:"🇪🇸", label:"Español" },
-          { code:"pt", flag:"🇧🇷", label:"Português (Brasil)" },
-          { code:"fr", font:"🇫🇷", label:"Français" },
-          { code:"de", flag:"🇩🇪", label:"Deutsch" },
-          { code:"ru", flag:"🇷🇺", label:"Русский" },
-          { code:"ja", flag:"🇯🇵", label:"日本語" },
-          { code:"ko", flag:"🇰🇷", label:"한국어" },
-          { code:"zh", flag:"🇨🇳", label:"简体中文" }
-        ];
+export default function App() {
+  const [lang, setLang] = useState("tr");
+  const [isRegister, setIsRegister] = useState(false);
+  
+  // Sadece giriş yapılabilmesi için kullanıcıyı doğrudan oturum açmış simüle ediyoruz
+  const [user, setUser] = useState({ username: "admin", email: "admin@opay.com", role: "admin", balance: 5000 });
+  
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [error, setError] = useState("");
 
-        const D = {
-          en:{
-            login:"Sign In",register:"Register",username:"Username",email:"Email",password:"Password",
-            confirmPw:"Confirm Password",noAcc:"Don't have an account?",haveAcc:"Already have an account?",
-            wrongPw:"Passwords do not match",welcome:"Welcome back",tagline:"OPAY TOKEN Platform"
-          },
-          tr:{
-            login:"Giriş Yap",register:"Kayıt Ol",username:"Kullanıcı Adı",email:"E-posta",password:"Şifre",
-            confirmPw:"Şifreyi Onayla",noAcc:"Hesabınız yok mu?",haveAcc:"Zaten hesabınız var mı?",
-            wrongPw:"Şifreler eşleşmiyor",welcome:"Tekrar Hoş Geldiniz",tagline:"OPAY TOKEN Platformu"
-          }
-        };
-
-        function App() {
-          const [lang, setLang] = useState("en"); // Görseldeki gibi İngilizce varsayılan
-          const [mode, setMode] = useState("login");
-          const [user, setUser] = useState("");
-          const [email, setEmail] = useState("");
-          const [pw, setPw] = useState("");
-          const [cpw, setCpw] = useState("");
-
-          const T = (key) => D[lang]?.[key] || D["en"][key] || key;
-
-          const handleSubmit = (e) => {
-            e.preventDefault();
-            if (mode === "register" && pw !== cpw) {
-              alert(T("wrongPw"));
-              return;
-            }
-            alert("Sisteme giriş yapıldı (Simülasyon)");
-          };
-
-          return (
-            <div>
-              {/* TOP BAR */}
-              <div class="top-bar">
-                <div class="brand">
-                  <div class="mini-logo">OP</div>
-                  <div class="brand-text">OPAY TOKEN</div>
-                </div>
-                <select value={lang} onChange={e => setLang(e.target.value)} class="lang-select">
-                  {LANGS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
-                </select>
-              </div>
-
-              {/* LOGIN CARD */}
-              <div class="login-card">
-                <div class="main-logo">OP</div>
-                <h2 class="welcome-text">{mode === "login" ? T("welcome") : T("register")}</h2>
-                <p class="tagline">{T("tagline")}</p>
-
-                <form onSubmit={handleSubmit}>
-                  <div class="input-group">
-                    <label class="input-label">{T("username")}</label>
-                    <input class="custom-input" placeholder="username" value={user} onChange={e=>setUser(e.target.value)} required />
-                  </div>
-
-                  {mode === "register" && (
-                    <div class="input-group">
-                      <label class="input-label">{T("email")}</label>
-                      <input type="email" class="custom-input" placeholder="email@example.com" value={email} onChange={e=>setEmail(e.target.value)} required />
-                    </div>
-                  )}
-
-                  <div class="input-group">
-                    <label class="input-label">{T("password")}</label>
-                    <input type="password" class="custom-input" placeholder="••••••••" value={pw} onChange={e=>setPw(e.target.value)} required />
-                  </div>
-
-                  {mode === "register" && (
-                    <div class="input-group">
-                      <label class="input-label">{T("confirmPw")}</label>
-                      <input type="password" class="custom-input" placeholder="••••••••" value={cpw} onChange={e=>setCpw(e.target.value)} required />
-                    </div>
-                  )}
-
-                  <button type="submit" class="submit-btn">
-                    {mode === "login" ? T("login") : T("register")}
-                  </button>
-                </form>
-
-                <p onClick={() => setMode(mode === "login" ? "register" : "login")} class="switch-mode">
-                  {mode === "login" ? T("noAcc") : T("haveAcc")}
-                  <span class="switch-link">{mode === "login" ? "Sign up" : "Sign in"}</span>
-                </p>
-              </div>
-            </div>
-          );
-        }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+  //
