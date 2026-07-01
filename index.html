@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Opay - Yönetici Paneli</title>
+    <title>Opay - Token Platform</title>
+    <!-- React ve Babel Başlatıcıları -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 text-gray-900 m-0 p-0 font-sans">
+<body class="bg-[#0b1329] text-slate-200 m-0 p-0 font-sans min-h-screen flex flex-col justify-center">
 
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState } = React;
 
-        // ─── Claude Orijinal Dil Ayarları ───────────────────────────────────────────
         const LANGS = [
           { code:"en", flag:"🇺🇸", label:"English" },
           { code:"tr", flag:"🇹🇷", label:"Türkçe" },
@@ -40,41 +41,23 @@
 
         const D = {
           en:{
-            login:"Login",register:"Register",username:"Username",email:"Email",password:"Password",
+            login:"Sign In",register:"Register",username:"Username",email:"Email",password:"Password",
             confirmPw:"Confirm Password",noAcc:"Don't have an account?",haveAcc:"Already have an account?",
             wrongPw:"Passwords do not match",adminTitle:"Admin Dashboard",searchUser:"Search username...",
             userTh:"User",statusTh:"Status",actionsTh:"Actions",adjFor:"Adjust Balance for",
-            amtLbl:"Amount (USDT)",applyBtn:"Apply",cancelBtn:"Cancel"
+            amtLbl:"Amount (USDT)",applyBtn:"Apply",cancelBtn:"Cancel",welcome:"Welcome back",tagline:"OPAY TOKEN Platform"
           },
           tr:{
             login:"Giriş Yap",register:"Kayıt Ol",username:"Kullanıcı Adı",email:"E-posta",password:"Şifre",
             confirmPw:"Şifreyi Onayla",noAcc:"Hesabınız yok mu?",haveAcc:"Zaten hesabınız var mı?",
             wrongPw:"Şifreler eşleşmiyor",adminTitle:"Yönetici Paneli",searchUser:"Kullanıcı adı ara...",
             userTh:"Kullanıcı",statusTh:"Durum",actionsTh:"İşlemler",adjFor:"Bakiye Düzenle:",
-            amtLbl:"Miktar (USDT)",applyBtn:"Uygula",cancelBtn:"İptal"
+            amtLbl:"Miktar (USDT)",applyBtn:"Uygula",cancelBtn:"İptal",welcome:"Tekrar Hoş Geldiniz",tagline:"OPAY TOKEN Platformu"
           }
         };
 
-        // ─── Claude Orijinal Tema ve Stil Dosyası ────────────────────────────────────
-        const s = {
-          card: { background: "#ffffff", padding: "24px", borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.06)" },
-          inp: { width: "100%", padding: "12px", marginBottom: "12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#f8fafc", transition: "all 0.2s" },
-          btn: (type) => ({
-            padding: "12px 20px",
-            background: type === "primary" ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)" : type === "ghost" ? "#f1f5f9" : "#475569",
-            color: type === "ghost" ? "#334155" : "#fff",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontWeight: "600",
-            width: "100%",
-            boxShadow: type === "primary" ? "0 4px 10px rgba(59, 130, 246, 0.3)" : "none"
-          }),
-          msg: (success) => ({ color: success ? "#10b981" : "#ef4444", fontSize: "14px", marginTop: "6px" })
-        };
-
         function App() {
-          const [lang, setLang] = useState("tr");
+          const [lang, setLang] = useState("en"); // Orijinal görseldeki gibi varsayılan English
           const [mode, setMode] = useState("login");
           const [user, setUser] = useState("");
           const [email, setEmail] = useState("");
@@ -86,7 +69,6 @@
           const [adjAmt, setAdjAmt] = useState("");
           const [adjMsg, setAdjMsg] = useState("");
           
-          // Orijinal mock kullanıcı listesi
           const [mockUsers, setMockUsers] = useState([
             { id: 1, name: "can_turkmen", email: "can@star-media.com", balance: "1500.00", status: "Active" },
             { id: 2, name: "alex_99", email: "alex@opay.com", balance: "450.00", status: "Active" },
@@ -107,101 +89,137 @@
 
           const doAdj = () => {
             if(!adjAmt || isNaN(adjAmt)) {
-              setAdjMsg("❌ Geçersiz miktar");
+              setAdjMsg("❌ Invalid amount");
               return;
             }
             setMockUsers(mockUsers.map(u => u.name === adjUser ? { ...u, balance: parseFloat(adjAmt).toFixed(2) } : u));
-            setAdjMsg("✅ Bakiye güncellendi!");
+            setAdjMsg("✅ Balance updated!");
             setTimeout(() => { setAdjUser(null); setAdjMsg(""); setAdjAmt(""); }, 1000);
           };
 
           return (
-            <div dir={isRtl ? "rtl" : "ltr"} class="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-50">
-              <div class="sm:mx-auto sm:w-full sm:max-w-md px-4">
-                <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                  <h1 class="text-2xl font-black tracking-wider text-blue-600 m-0">OPAY</h1>
-                  <select value={lang} onChange={e => setLang(e.target.value)} class="bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-sm font-medium text-slate-700 outline-none">
-                    {LANGS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
-                  </select>
+            <div dir={isRtl ? "rtl" : "ltr"} class="w-full max-w-md mx-auto px-4 py-8">
+              
+              {/* TOP BAR */}
+              <div class="flex justify-between items-center mb-8">
+                <div class="flex items-center gap-2">
+                  <div class="bg-gradient-to-tr from-[#00b4d8} to-[#00f5d4] text-white font-black px-2.5 py-1.5 rounded-lg text-sm shadow-md">OP</div>
+                  <span class="text-lg font-bold tracking-wider text-white">OPAY TOKEN</span>
                 </div>
+                <select value={lang} onChange={e => setLang(e.target.value)} class="bg-[#1a233d] border border-slate-700/50 rounded-lg px-2 py-1 text-xs font-semibold text-slate-300 outline-none cursor-pointer">
+                  {LANGS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.label}</option>)}
+                </select>
               </div>
 
-              <div class="sm:mx-auto sm:w-full sm:max-w-md px-4">
-                {!isAuthed ? (
-                  <div style={s.card} class="border border-slate-100">
-                    <h2 class="text-xl font-bold text-slate-800 mb-6">{mode === "login" ? T("login") : T("register")}</h2>
-                    <form onSubmit={handleAuth}>
-                      <input style={s.inp} placeholder={T("username")} value={user} onChange={e=>setUser(e.target.value)} required />
-                      {mode === "register" && <input style={s.inp} type="email" placeholder={T("email")} value={email} onChange={e=>setEmail(e.target.value)} required />}
-                      <input style={s.inp} type="password" placeholder={T("password")} value={pw} onChange={e=>setPw(e.target.value)} required />
-                      {mode === "register" && <input style={s.inp} type="password" placeholder={T("confirmPw")} value={cpw} onChange={e=>setCpw(e.target.value)} required />}
-                      <button type="submit" style={s.btn("primary")} class="hover:opacity-90 active:scale-[0.98] transition-all">{mode === "login" ? T("login") : T("register")}</button>
-                    </form>
-                    <p onClick={() => setMode(mode === "login" ? "register" : "login")} class="text-center text-sm text-blue-600 font-semibold mt-5 cursor-pointer hover:underline">
-                      {mode === "login" ? T("noAcc") : T("haveAcc")}
-                    </p>
+              {!isAuthed ? (
+                /* DARK LOGIN CARD (image_5.png kopyası) */
+                <div class="bg-[#111a33] border border-slate-800/80 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+                  
+                  {/* LOGO AREA */}
+                  <div class="flex flex-col items-center mb-6">
+                    <div class="w-16 h-16 bg-gradient-to-br from-[#00b4d8] to-[#02c39a] rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-cyan-500/10 mb-4">
+                      OP
+                    </div>
+                    <h2 class="text-2xl font-bold text-white mb-1">{mode === "login" ? T("welcome") : T("register")}</h2>
+                    <p class="text-xs text-blue-400 font-medium tracking-wide">{T("tagline")}</p>
                   </div>
-                ) : (
-                  <div style={s.card} class="w-full sm:max-w-3xl sm:mx-auto border border-slate-100 !p-6">
-                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                      <h2 class="text-xl font-bold text-slate-800">{T("adminTitle")}</h2>
-                      <button onClick={() => setIsAuthed(false)} class="bg-rose-50 text-rose-600 font-semibold px-4 py-2 rounded-lg text-sm hover:bg-rose-100 transition-colors">Çıkış Yap</button>
+
+                  <form onSubmit={handleAuth} class="space-y-4">
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-400 mb-1.5">{T("username")}</label>
+                      <input class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder="username" value={user} onChange={e=>setUser(e.target.value)} required />
                     </div>
 
-                    <div class="mb-4">
-                      <input style={s.inp} placeholder={T("searchUser")} value={search} onChange={e => setSearch(e.target.value)} class="!mb-0" />
+                    {mode === "register" && (
+                      <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1.5">{T("email")}</label>
+                        <input type="email" class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder="email@example.com" value={email} onChange={e=>setEmail(e.target.value)} required />
+                      </div>
+                    )}
+
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-400 mb-1.5">{T("password")}</label>
+                      <input type="password" class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder="••••••••" value={pw} onChange={e=>setPw(e.target.value)} required />
                     </div>
 
-                    <div class="overflow-x-auto rounded-xl border border-slate-100">
-                      <table class="w-full text-left border-collapse bg-white">
-                        <thead>
-                          <tr class="bg-slate-50 border-b border-slate-100 text-slate-600 font-semibold text-sm">
-                            <th class="p-4">{T("userTh")}</th>
-                            <th class="p-4">Bakiye</th>
-                            <th class="p-4">{T("statusTh")}</th>
-                            <th class="p-4 text-right">{T("actionsTh")}</th>
+                    {mode === "register" && (
+                      <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1.5">{T("confirmPw")}</label>
+                        <input type="password" class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder="••••••••" value={cpw} onChange={e=>setCpw(e.target.value)} required />
+                      </div>
+                    )}
+
+                    <button type="submit" class="w-full bg-gradient-to-r from-[#00b4d8] to-[#02c39a] text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-cyan-500/20 hover:opacity-95 active:scale-[0.99] transition-all text-sm mt-2">
+                      {mode === "login" ? T("login") : T("register")}
+                    </button>
+                  </form>
+
+                  <p onClick={() => setMode(mode === "login" ? "register" : "login")} class="text-center text-xs text-slate-400 font-medium mt-6 cursor-pointer hover:text-white transition-colors">
+                    {mode === "login" ? T("noAcc") : T("haveAcc")} <span class="text-[#02c39a] font-bold ml-1 hover:underline">{mode === "login" ? "Sign up" : "Sign in"}</span>
+                  </p>
+                </div>
+              ) : (
+                /* ADMIN DASHBOARD (Dark Mode) */
+                <div class="bg-[#111a33] border border-slate-800/80 rounded-2xl p-6 shadow-2xl w-full max-w-3xl -mx-4 sm:mx-auto">
+                  <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
+                    <h2 class="text-lg font-bold text-white">{T("adminTitle")}</h2>
+                    <button onClick={() => setIsAuthed(false)} class="bg-rose-500/10 text-rose-400 font-bold px-3 py-1.5 rounded-lg text-xs hover:bg-rose-500/20 transition-colors">Sign Out</button>
+                  </div>
+
+                  <div class="mb-4">
+                    <input class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors" placeholder={T("searchUser")} value={search} onChange={e => setSearch(e.target.value)} />
+                  </div>
+
+                  <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-left border-collapse bg-[#111a33]">
+                      <thead>
+                        <tr class="bg-[#090f1f] border-b border-slate-800 text-slate-400 font-semibold text-xs">
+                          <th class="p-3">{T("userTh")}</th>
+                          <th class="p-3">Balance</th>
+                          <th class="p-3">{T("statusTh")}</th>
+                          <th class="p-3 text-right">{T("actionsTh")}</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-slate-800/60 text-xs text-slate-300">
+                        {mockUsers.filter(u => u.name.toLowerCase().includes(search.toLowerCase())).map(u => (
+                          <tr key={u.id} class="hover:bg-[#162240] transition-colors">
+                            <td class="p-3">
+                              <div class="font-bold text-white">@{u.name}</div>
+                              <div class="text-[10px] text-slate-500 mt-0.5">{u.email}</div>
+                            </td>
+                            <td class="p-3 font-bold text-emerald-400">{u.balance} USDT</td>
+                            <td class="p-3">
+                              <span class={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${u.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                                {u.status}
+                              </span>
+                            </td>
+                            <td class="p-3 text-right">
+                              <button onClick={() => { setAdjUser(u.name); setAdjAmt(u.balance); }} class="bg-cyan-500/10 text-cyan-400 px-2.5 py-1 rounded-md text-[11px] font-bold hover:bg-cyan-500/20 transition-colors">Edit</button>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100 text-sm">
-                          {mockUsers.filter(u => u.name.toLowerCase().includes(search.toLowerCase())).map(u => (
-                            <tr key={u.id} class="hover:bg-slate-50/50 transition-colors">
-                              <td class="p-4">
-                                <div class="font-bold text-slate-800">@{u.name}</div>
-                                <div class="text-xs text-slate-400 mt-0.5">{u.email}</div>
-                              </td>
-                              <td class="p-4 font-bold text-emerald-600">{u.balance} USDT</td>
-                              <td class="p-4">
-                                <span class={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${u.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                                  {u.status}
-                                </span>
-                              </td>
-                              <td class="p-4 text-right">
-                                <button onClick={() => { setAdjUser(u.name); setAdjAmt(u.balance); }} class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors">Düzenle</button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* MODAL WINDOW */}
+              {/* MODAL WINDOW (Dark Mode) */}
               {adjUser && (
-                <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div style={s.card} class="w-full max-w-sm animate-in fade-in zoom-in-95 duration-150">
-                    <div class="font-bold text-slate-800 mb-4 text-lg border-b border-slate-100 pb-2">{T("adjFor")} @{adjUser}</div>
-                    <div class="text-xs font-bold text-slate-500 mb-2">{T("amtLbl")}</div>
-                    <input style={s.inp} type="number" step="0.01" placeholder="0.00" value={adjAmt} onChange={e=>setAdjAmt(e.target.value)} class="text-lg font-semibold" />
-                    {adjMsg && <div style={s.msg(adjMsg.startsWith("✅"))} class="font-medium text-center p-2 rounded-lg bg-slate-50">{adjMsg}</div>}
+                <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div class="bg-[#111a33] border border-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                    <div class="font-bold text-white mb-4 text-base border-b border-slate-800 pb-2">{T("adjFor")} @{adjUser}</div>
+                    <div class="text-xs font-bold text-slate-400 mb-2">{T("amtLbl")}</div>
+                    <input type="number" step="0.01" class="w-full bg-[#090f1f] border border-slate-800 rounded-xl px-4 py-3 text-base text-white focus:outline-none focus:border-cyan-500 font-semibold" value={adjAmt} onChange={e=>setAdjAmt(e.target.value)} />
+                    {adjMsg && <div class={`text-xs font-medium text-center p-2 rounded-lg mt-3 ${adjMsg.startsWith('✅') ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>{adjMsg}</div>}
                     <div class="flex gap-3 mt-5">
-                      <button style={s.btn("primary")} onClick={doAdj} class="!w-1/2">{T("applyBtn")}</button>
-                      <button style={s.btn("ghost")} onClick={() => { setAdjUser(null); setAdjMsg(""); }} class="!w-1/2">{T("cancelBtn")}</button>
+                      <button onClick={doAdj} class="w-1/2 bg-gradient-to-r from-[#00b4d8] to-[#02c39a] text-white text-xs font-bold py-2.5 rounded-xl shadow-lg shadow-cyan-500/10">_{T("applyBtn")}</button>
+                      <button onClick={() => { setAdjUser(null); setAdjMsg(""); }} class="w-1/2 bg-slate-800 text-slate-300 text-xs font-bold py-2.5 rounded-xl hover:bg-slate-700">{T("cancelBtn")}</button>
                     </div>
                   </div>
                 </div>
               )}
+
             </div>
           );
         }
