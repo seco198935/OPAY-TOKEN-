@@ -47,7 +47,7 @@ const D = {
     errFields:"Please fill in all fields.",errPwMatch:"Passwords do not match.",
     errEmail:"Please enter a valid email address.",
     okRegister:"Account created! You can now sign in.",
-    dashboard:"Dashboard",exchange:"Exchange",history:"History",admin:"Admin",logout:"Logout",
+    dashboard:"Dashboard",exchange:"Exchange",history:"History",admin:"Admin",logout:"Logout",wallet:"Wallet",deposit:"Deposit",withdraw:"Withdraw",depTitle:"Deposit USDT",wdTitle:"Withdraw USDT",cryptomusKey:"Cryptomus API Key (Merchant)",cryptomusSec:"Cryptomus Payment Secret",depAmt:"Amount (USDT)",depCoin:"Coin",depNetwork:"Network",depBtn:"Create Payment",depNote:"You will be redirected to Cryptomus payment page. After payment is confirmed, your USDT balance will be updated automatically.",wdAmt:"Amount to withdraw (min. 10 USDT)",wdAddr:"Your wallet address (USDT)",wdNet:"Network",wdBtn:"Submit Withdrawal Request",wdNote:"Withdrawals are processed within 24 hours. Cryptomus will send the funds to your address.",wdPending:"⏳ Withdrawal request submitted. Processing within 24h.",depPending:"✅ Payment link created! Redirecting to Cryptomus...",errWdMin:"Minimum withdrawal is 10 USDT.",errWdAddr:"Please enter a valid wallet address.",errWdBal:"Insufficient USDT balance.",errAmt2:"Please enter a valid amount.",apiSetup:"API Setup (Admin only: set your Cryptomus keys)",depHistory:"Deposit & Withdrawal History",noWalletTx:"No deposit or withdrawal history yet.",colStatus:"Status",statusPending:"Pending",statusDone:"Completed",statusFailed:"Failed",networkNote:"Make sure to select the correct network to avoid loss of funds.",
     buyPrice:"Buy Price",sellPrice:"Sell Price",yourOpay:"Your OPAY Balance",yourUsdt:"Your USDT Balance",
     lastUpdate:"last update",spread:"Fixed 2% spread",
     chartTitle:"OPAY TOKEN Price Chart (Buy)",
@@ -99,7 +99,7 @@ const D = {
     errFields:"Lütfen tüm alanları doldurun.",errPwMatch:"Şifreler eşleşmiyor.",
     errEmail:"Lütfen geçerli bir e-posta adresi girin.",
     okRegister:"Hesap oluşturuldu! Şimdi giriş yapabilirsiniz.",
-    dashboard:"Panel",exchange:"Exchange",history:"Geçmiş",admin:"Admin",logout:"Çıkış",
+    dashboard:"Panel",exchange:"Exchange",history:"Geçmiş",admin:"Admin",logout:"Çıkış",wallet:"Cüzdan",deposit:"Para Yatır",withdraw:"Para Çek",depTitle:"USDT Yatır",wdTitle:"USDT Çek",cryptomusKey:"Cryptomus API Key (Merchant)",cryptomusSec:"Cryptomus Payment Secret",depAmt:"Miktar (USDT)",depCoin:"Coin",depNetwork:"Network",depBtn:"Ödeme Oluştur",depNote:"Cryptomus ödeme sayfasına yönlendirileceksiniz. Ödeme onaylandıktan sonra USDT bakiyeniz otomatik güncellenecektir.",wdAmt:"Çekmek istediğiniz miktar (min. 10 USDT)",wdAddr:"Cüzdan adresiniz (USDT)",wdNet:"Network",wdBtn:"Çekim Talebi Gönder",wdNote:"Çekimler 24 saat içinde işlenir. Cryptomus fonları adresinize gönderecektir.",wdPending:"⏳ Çekim talebiniz alındı. 24 saat içinde işlenecek.",depPending:"✅ Ödeme linki oluşturuldu! Cryptomus'a yönlendiriliyorsunuz...",errWdMin:"Minimum çekim 10 USDT.",errWdAddr:"Geçerli bir cüzdan adresi girin.",errWdBal:"Yetersiz USDT bakiyesi.",errAmt2:"Geçerli bir miktar girin.",apiSetup:"API Kurulumu (Sadece Admin: Cryptomus anahtarlarını girin)",depHistory:"Yatırma & Çekme Geçmişi",noWalletTx:"Henüz yatırma veya çekme geçmişi yok.",colStatus:"Durum",statusPending:"Bekliyor",statusDone:"Tamamlandı",statusFailed:"Başarısız",networkNote:"Fon kaybını önlemek için doğru ağı seçtiğinizden emin olun.",
     buyPrice:"Alış Fiyatı",sellPrice:"Satış Fiyatı",yourOpay:"OPAY Bakiyeniz",yourUsdt:"USDT Bakiyeniz",
     lastUpdate:"son güncelleme",spread:"Spread: %2 sabit",
     chartTitle:"OPAY TOKEN Fiyat Grafiği (Alış)",
@@ -296,6 +296,20 @@ function App(){
   const [adjMsg,setAdjMsg]=useState("");
   // admin tab
   const [adminTab,setAdminTab]=useState("price");
+  // wallet
+  const [walletTab,setWalletTab]=useState("deposit");
+  const [depAmt,setDepAmt]=useState("");
+  const [depCoin,setDepCoin]=useState("USDT");
+  const [depNet,setDepNet]=useState("TRON");
+  const [depMsg,setDepMsg]=useState("");
+  const [wdAmt,setWdAmt]=useState("");
+  const [wdAddr,setWdAddr]=useState("");
+  const [wdNet,setWdNet]=useState("TRON");
+  const [wdMsg,setWdMsg]=useState("");
+  const [walletTxs,setWalletTxs]=useState([]);
+  const [cmKey,setCmKey]=useState("");
+  const [cmSec,setCmSec]=useState("");
+  const [cmSaved,setCmSaved]=useState(false);
 
   const rtl=RTL.includes(lang);
   const cur=session?users[session]:null;
@@ -379,6 +393,52 @@ function App(){
       return {...prev,[adjUser]:u};
     });
     setAdjMsg(T("msgBalOk"));setAdjAmt("");
+  }
+
+  // ── WALLET: DEPOSIT via Cryptomus ──
+  async function doDeposit(){
+    setDepMsg("");
+    const amt=parseFloat(depAmt);
+    if(!amt||amt<=0){setDepMsg(T("errAmt2"));return;}
+    if(!cmKey||!cmSec){setDepMsg("⚠️ Cryptomus API keys not configured. Ask admin.");return;}
+    const orderId="DEP-"+Date.now()+"-"+session;
+    const body={amount:String(amt),currency:"USD",order_id:orderId,url_return:window.location.href,url_callback:window.location.href,network:depNet,to_currency:depCoin,lifetime:3600};
+    const sign=await makeCryptomusSign(body,cmSec);
+    try{
+      const res=await fetch("https://api.cryptomus.com/v1/payment",{
+        method:"POST",
+        headers:{"merchant":cmKey,"sign":sign,"Content-Type":"application/json"},
+        body:JSON.stringify(body)
+      });
+      const data=await res.json();
+      if(data?.result?.url){
+        setWalletTxs(prev=>[{id:orderId,type:"deposit",amt,coin:depCoin,net:depNet,status:"pending",date:new Date().toISOString().slice(0,16).replace("T"," "),user:session},...prev]);
+        setDepMsg(T("depPending"));
+        setTimeout(()=>window.open(data.result.url,"_blank"),1000);
+      } else {
+        setDepMsg("⚠️ "+(data?.errors?.join(", ")||data?.message||"Cryptomus error. Check API keys."));
+      }
+    }catch(e){setDepMsg("⚠️ Network error: "+e.message);}
+  }
+
+  function doWithdraw(){
+    setWdMsg("");
+    const amt=parseFloat(wdAmt);
+    if(!amt||amt<10){setWdMsg(T("errWdMin"));return;}
+    if(!wdAddr||wdAddr.length<10){setWdMsg(T("errWdAddr"));return;}
+    if(amt>users[session].usdt){setWdMsg(T("errWdBal"));return;}
+    setUsers(prev=>{const u={...prev[session]};u.usdt-=amt;return{...prev,[session]:u};});
+    setWalletTxs(prev=>[{id:"WD-"+Date.now(),type:"withdraw",amt,addr:wdAddr,net:wdNet,status:"pending",date:new Date().toISOString().slice(0,16).replace("T"," "),user:session},...prev]);
+    setWdMsg(T("wdPending"));
+    setWdAmt("");setWdAddr("");
+  }
+
+  async function makeCryptomusSign(body,secret){
+    const str=btoa(JSON.stringify(body));
+    const enc=new TextEncoder();
+    const key=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"MD5"},false,["sign"]);
+    const sig=await crypto.subtle.sign("HMAC",key,enc.encode(str));
+    return Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,"0")).join("");
   }
 
   // ── STYLES ──
@@ -484,6 +544,7 @@ function App(){
     {id:"dashboard",label:T("dashboard")},
     {id:"exchange",label:T("exchange")},
     {id:"history",label:T("history")},
+    {id:"wallet",label:"💳 "+T("wallet")},
     ...(cur.isAdmin?[{id:"admin",label:"⚙️ "+T("admin")}]:[]),
   ];
   const filteredUsers=Object.entries(users).filter(([k])=>k!=="admin"?true:true).filter(([k,v])=>
@@ -626,13 +687,143 @@ function App(){
           </div>
         )}
 
+        {/* ── WALLET ── */}
+        {page==="wallet"&&(
+          <div style={{maxWidth:520,margin:"0 auto"}}>
+            {/* Tabs */}
+            <div style={{display:"flex",gap:5,marginBottom:18,background:"#0b1525",borderRadius:10,padding:4}}>
+              {["deposit","withdraw","history"].map(t=>(
+                <button key={t} style={{flex:1,padding:"9px 0",border:"none",borderRadius:7,cursor:"pointer",fontWeight:600,fontSize:13,
+                  background:walletTab===t?"linear-gradient(135deg,#00C896,#0088cc)":"transparent",
+                  color:walletTab===t?"#fff":"#3a5a8a",transition:"all 0.15s"}}
+                  onClick={()=>{setWalletTab(t);setDepMsg("");setWdMsg("");}}>
+                  {t==="deposit"?"⬇️ "+T("deposit"):t==="withdraw"?"⬆️ "+T("withdraw"):"📋 "+T("depHistory")}
+                </button>
+              ))}
+            </div>
+
+            {/* DEPOSIT */}
+            {walletTab==="deposit"&&(
+              <div style={s.card}>
+                <div style={s.ct}>{T("depTitle")}</div>
+                {!cmKey&&(
+                  <div style={{background:"#ff9f4a15",border:"1px solid #ff9f4a40",borderRadius:8,padding:12,fontSize:12,color:"#ff9f4a",marginBottom:16}}>
+                    ⚠️ Cryptomus API keys not set. Contact admin to enable deposits.
+                  </div>
+                )}
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5}}>{T("depAmt")}</div>
+                  <input style={s.inp} type="number" min="1" placeholder="10.00" value={depAmt} onChange={e=>{setDepAmt(e.target.value);setDepMsg("");}}/>
+                </div>
+                <div style={{...s.row,gap:12,marginBottom:12}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5}}>{T("depCoin")}</div>
+                    <select style={{...s.inp,cursor:"pointer"}} value={depCoin} onChange={e=>setDepCoin(e.target.value)}>
+                      {["USDT","USDC","BTC","ETH","BNB","TRX","LTC","DOGE","XRP","SOL"].map(c=>(
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5}}>{T("depNetwork")}</div>
+                    <select style={{...s.inp,cursor:"pointer"}} value={depNet} onChange={e=>setDepNet(e.target.value)}>
+                      {["TRON","ETH","BSC","POLYGON","SOL","BTC","LTC","XRP","DOGE"].map(n=>(
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div style={{background:"#060d1a",borderRadius:8,padding:12,fontSize:12,color:"#3a5a8a",marginBottom:14,lineHeight:1.7}}>
+                  ⚠️ {T("networkNote")}
+                </div>
+                <button style={{...s.btn("primary"),width:"100%"}} onClick={doDeposit}>{T("depBtn")}</button>
+                {depMsg&&<div style={s.msg(depMsg.startsWith("✅"))}>{depMsg}</div>}
+                <div style={{...s.note,marginTop:14,fontSize:12}}>{T("depNote")}</div>
+              </div>
+            )}
+
+            {/* WITHDRAW */}
+            {walletTab==="withdraw"&&(
+              <div style={s.card}>
+                <div style={s.ct}>{T("wdTitle")}</div>
+                <div style={{background:"#060d1a",borderRadius:8,padding:12,marginBottom:16,fontSize:13}}>
+                  <span style={{color:"#3a5a8a"}}>USDT Balance: </span>
+                  <span style={{...s.G,fontWeight:700}}>{users[session].usdt.toFixed(2)} USDT</span>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5}}>{T("wdAmt")}</div>
+                  <input style={s.inp} type="number" min="10" placeholder="10.00" value={wdAmt} onChange={e=>{setWdAmt(e.target.value);setWdMsg("");}}/>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5}}>{T("wdNet")}</div>
+                  <select style={{...s.inp,cursor:"pointer"}} value={wdNet} onChange={e=>setWdNet(e.target.value)}>
+                    {["TRON","ETH","BSC","POLYGON","SOL","BTC","LTC","XRP","DOGE"].map(n=>(
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:12,color:"#3a5a8a",marginBottom:5}}>{T("wdAddr")}</div>
+                  <input style={s.inp} placeholder="T... / 0x... / bc1..." value={wdAddr} onChange={e=>{setWdAddr(e.target.value);setWdMsg("");}}/>
+                </div>
+                <div style={{background:"#060d1a",borderRadius:8,padding:12,fontSize:12,color:"#3a5a8a",marginBottom:14,lineHeight:1.7}}>
+                  ⚠️ {T("networkNote")}
+                </div>
+                <button style={{...s.btn("sell"),width:"100%"}} onClick={doWithdraw}>{T("wdBtn")}</button>
+                {wdMsg&&<div style={s.msg(wdMsg.startsWith("✅")||wdMsg.startsWith("⏳"))}>{wdMsg}</div>}
+                <div style={{...s.note,marginTop:14,fontSize:12}}>{T("wdNote")}</div>
+              </div>
+            )}
+
+            {/* HISTORY */}
+            {walletTab==="history"&&(
+              <div style={s.card}>
+                <div style={s.ct}>{T("depHistory")}</div>
+                {walletTxs.length===0?(
+                  <div style={{textAlign:"center",color:"#3a5a8a",padding:"36px 0",fontSize:14}}>{T("noWalletTx")}</div>
+                ):(
+                  <div style={{overflowX:"auto"}}>
+                    <table style={s.tbl}>
+                      <thead><tr>
+                        {["Type",T("colDate"),T("colUsdt"),"Coin/Net",T("colStatus")].map(h=><th key={h} style={s.th}>{h}</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {walletTxs.map(tx=>(
+                          <tr key={tx.id}>
+                            <td style={s.td}>
+                              <span style={{display:"inline-block",padding:"2px 9px",borderRadius:20,fontSize:11,fontWeight:600,
+                                background:tx.type==="deposit"?"#00C89615":"#f0406015",
+                                color:tx.type==="deposit"?"#00C896":"#f04060"}}>
+                                {tx.type==="deposit"?"⬇️ DEP":"⬆️ WD"}
+                              </span>
+                            </td>
+                            <td style={{...s.td,color:"#3a5a8a",fontSize:12}}>{tx.date}</td>
+                            <td style={{...s.td,...s.G,fontWeight:600}}>{tx.amt.toFixed(2)}</td>
+                            <td style={{...s.td,color:"#8a9ab8",fontSize:12}}>{tx.coin||"USDT"} / {tx.net}</td>
+                            <td style={s.td}>
+                              <span style={{fontSize:11,fontWeight:600,
+                                color:tx.status==="done"?"#00C896":tx.status==="failed"?"#f04060":"#ff9f4a"}}>
+                                {tx.status==="done"?T("statusDone"):tx.status==="failed"?T("statusFailed"):T("statusPending")}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── ADMIN ── */}
         {page==="admin"&&cur.isAdmin&&(
           <>
             <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
-              {["price","content","users"].map(t=>(
+              {["price","content","users","cryptomus"].map(t=>(
                 <button key={t} style={s.aTab(adminTab===t)} onClick={()=>setAdminTab(t)}>
-                  {t==="price"?"📈 "+T("adminPrice"):t==="content"?"✏️ "+T("cntTitle").split("(")[0].trim():"👥 "+T("userTitle")}
+                  {t==="price"?"📈 "+T("adminPrice"):t==="content"?"✏️ "+T("cntTitle").split("(")[0].trim():t==="users"?"👥 "+T("userTitle"):"🔑 Cryptomus"}
                 </button>
               ))}
             </div>
@@ -774,6 +965,130 @@ function App(){
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* CRYPTOMUS TAB */}
+            {adminTab==="cryptomus"&&(
+              <div style={s.card}>
+                <div style={s.ct}>🔑 Cryptomus API Setup</div>
+                <div style={{...s.note,marginBottom:20,fontSize:13}}>
+                  <b style={{color:"#00C896"}}>How to get your keys:</b>{"\n\n"}
+                  1. Go to <b>cryptomus.com</b> → Sign up / Login{"\n"}
+                  2. Dashboard → <b>Merchants</b> → Create a merchant{"\n"}
+                  3. Copy your <b>Merchant UUID</b> (API Key) and <b>Payment API Key</b> (Secret){"\n"}
+                  4. Paste them below and click Save{"\n\n"}
+                  These keys are stored in your browser only (not on any server).{"\n"}
+                  Users will see a deposit form — on payment, Cryptomus redirects them back here.
+                </div>
+
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:12,color:"#3a5a8a",marginBottom:6}}>{T("cryptomusKey")} (Merchant UUID)</div>
+                  <input
+                    style={s.inp}
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    value={cmKey}
+                    onChange={e=>{setCmKey(e.target.value);setCmSaved(false);}}
+                  />
+                </div>
+                <div style={{marginBottom:18}}>
+                  <div style={{fontSize:12,color:"#3a5a8a",marginBottom:6}}>{T("cryptomusSec")} (Payment API Key)</div>
+                  <input
+                    style={s.inp}
+                    type="password"
+                    placeholder="Your Cryptomus Payment Secret"
+                    value={cmSec}
+                    onChange={e=>{setCmSec(e.target.value);setCmSaved(false);}}
+                  />
+                </div>
+                <button
+                  style={{...s.btn("primary"),width:"100%"}}
+                  onClick={()=>setCmSaved(true)}
+                >
+                  💾 Save API Keys
+                </button>
+                {cmSaved&&(
+                  <div style={s.msg(true)}>✅ Keys saved! Users can now deposit via Cryptomus.</div>
+                )}
+
+                <div style={{marginTop:24}}>
+                  <div style={{...s.ct,marginBottom:12}}>📋 All Deposit / Withdrawal Requests</div>
+                  {walletTxs.length===0?(
+                    <div style={{textAlign:"center",color:"#3a5a8a",padding:"24px 0",fontSize:13}}>{T("noWalletTx")}</div>
+                  ):(
+                    <div style={{overflowX:"auto"}}>
+                      <table style={s.tbl}>
+                        <thead><tr>
+                          {["User","Type",T("colDate"),T("colUsdt"),"Net",T("colStatus"),"Action"].map(h=>(
+                            <th key={h} style={s.th}>{h}</th>
+                          ))}
+                        </tr></thead>
+                        <tbody>
+                          {walletTxs.map((tx,idx)=>(
+                            <tr key={tx.id}>
+                              <td style={{...s.td,color:"#8a9ab8",fontSize:12}}>{tx.user||session}</td>
+                              <td style={s.td}>
+                                <span style={{fontSize:11,fontWeight:600,color:tx.type==="deposit"?"#00C896":"#f04060"}}>
+                                  {tx.type==="deposit"?"⬇️ DEP":"⬆️ WD"}
+                                </span>
+                              </td>
+                              <td style={{...s.td,color:"#3a5a8a",fontSize:12}}>{tx.date}</td>
+                              <td style={{...s.td,...s.G,fontWeight:600}}>{tx.amt.toFixed(2)}</td>
+                              <td style={{...s.td,fontSize:12,color:"#8a9ab8"}}>{tx.net}</td>
+                              <td style={s.td}>
+                                <span style={{fontSize:11,fontWeight:600,
+                                  color:tx.status==="done"?"#00C896":tx.status==="failed"?"#f04060":"#ff9f4a"}}>
+                                  {tx.status==="done"?T("statusDone"):tx.status==="failed"?T("statusFailed"):T("statusPending")}
+                                </span>
+                              </td>
+                              <td style={s.td}>
+                                <div style={{display:"flex",gap:5}}>
+                                  {tx.status==="pending"&&(
+                                    <>
+                                      <button
+                                        style={{...s.btn("primary"),padding:"3px 9px",fontSize:11}}
+                                        onClick={()=>{
+                                          const updated=[...walletTxs];
+                                          updated[idx]={...tx,status:"done"};
+                                          if(tx.type==="deposit"){
+                                            setUsers(prev=>{
+                                              const u={...prev[tx.user||session]};
+                                              u.usdt+=tx.amt;
+                                              return{...prev,[tx.user||session]:u};
+                                            });
+                                          }
+                                          setWalletTxs(updated);
+                                        }}
+                                      >✅ Approve</button>
+                                      <button
+                                        style={{...s.btn("sell"),padding:"3px 9px",fontSize:11}}
+                                        onClick={()=>{
+                                          const updated=[...walletTxs];
+                                          updated[idx]={...tx,status:"failed"};
+                                          if(tx.type==="withdraw"){
+                                            setUsers(prev=>{
+                                              const u={...prev[tx.user||session]};
+                                              u.usdt+=tx.amt;
+                                              return{...prev,[tx.user||session]:u};
+                                            });
+                                          }
+                                          setWalletTxs(updated);
+                                        }}
+                                      >❌ Reject</button>
+                                    </>
+                                  )}
+                                  {tx.status!=="pending"&&(
+                                    <span style={{fontSize:11,color:"#3a5a8a"}}>—</span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </>
