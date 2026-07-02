@@ -8,153 +8,115 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#060d1a;font-family:system-ui,sans-serif;color:#dde4f0}
 input,button,textarea,select{font-family:inherit}
-#root{min-height:100vh}
 </style>
 </head>
 <body>
-<div id="root">
-  <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px">
-    <div style="width:50px;height:50px;background:linear-gradient(135deg,#00C896,#0066cc);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff">OP</div>
-    <div style="color:#3a5a8a;font-size:14px">Loading...</div>
-  </div>
-</div>
-
+<div id="root"></div>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
 <script type="text/babel" data-presets="react">
-const { useState, useEffect, useCallback } = React;
+const {useState,useEffect}=React;
 
-// ═══════════════════════════════════════
-// FIREBASE CONFIG
-// ═══════════════════════════════════════
-const FB_CFG = {
-  apiKey: "AIzaSyBIhrTlhGRWEfYa5Qf2OsD1zDc8rvTtZws",
-  authDomain: "opay-token.firebaseapp.com",
-  databaseURL: "https://opay-token-default-rtdb.firebaseio.com",
-  projectId: "opay-token",
-  storageBucket: "opay-token.firebasestorage.app",
-  messagingSenderId: "894323137341",
-  appId: "1:894323137341:web:899efce5fcf65008c70354"
+// ── Storage helpers ──
+const LS={
+  get:(k,def)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}},
 };
 
-// ═══════════════════════════════════════
-// FIREBASE LOADER — async import
-// ═══════════════════════════════════════
-let _app=null, _db=null, _auth=null;
+// ── Default data ──
+const DEF_PRICES=[
+  {date:"2025-01-01",buy:1.000},{date:"2025-06-01",buy:1.485},
+  {date:"2025-12-01",buy:1.997},{date:"2026-04-01",buy:2.460},{date:"2026-06-29",buy:2.850},
+];
+const DEF_CARDS=[
+  {icon:"🔒",title:"Secure Platform",desc:"Trade only through this site"},
+  {icon:"📈",title:"Growing Value",desc:"Daily price set by admin"},
+  {icon:"⚡",title:"Instant Transactions",desc:"Easy USDT ↔ OPAY conversion"},
+  {icon:"💱",title:"Fixed Spread",desc:"Transparent fixed buy/sell difference"},
+];
+const DEF_USERS={
+  admin:{pw:"admin123",name:"Admin",email:"admin@opay.com",usdt:10000,opay:5000,isAdmin:true},
+};
 
-async function initFirebase(){
-  if(_app) return {db:_db,auth:_auth};
-  try{
-    const [appMod,authMod,dbMod]=await Promise.all([
-      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"),
-      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"),
-      import("https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"),
-    ]);
-    _app=appMod.initializeApp(FB_CFG);
-    _auth=authMod.getAuth(_app);
-    _db=dbMod.getDatabase(_app);
-    window._fbAuth=_auth;
-    window._fbDb=_db;
-    window._fbMods={...authMod,...dbMod};
-    return {db:_db,auth:_auth,mods:{...authMod,...dbMod}};
-  }catch(e){
-    console.error("Firebase load failed:",e);
-    return null;
-  }
-}
-
-// ═══════════════════════════════════════
-// i18n
-// ═══════════════════════════════════════
+// ── i18n ──
 const TR={
   login:"Giriş Yap",register:"Üye Ol",username:"Kullanıcı Adı",email:"E-posta",password:"Şifre",
   confirmPw:"Şifre Tekrar",fullName:"Ad Soyad",loginBtn:"Giriş Yap",registerBtn:"Hesap Oluştur",
   noAcc:"Hesabınız yok mu?",haveAcc:"Hesabınız var mı?",signUp:"Üye olun",signIn:"Giriş yapın",
   welcomeBack:"Hoş Geldiniz",createAcc:"Hesap Oluşturun",tagline:"OPAY TOKEN Platformu",
-  errLogin:"E-posta veya şifre hatalı.",errExists:"Bu kullanıcı adı veya e-posta kayıtlı.",
+  errLogin:"E-posta/kullanıcı adı veya şifre hatalı.",errExists:"Bu kullanıcı adı veya e-posta kayıtlı.",
   errFields:"Tüm alanları doldurun.",errPwMatch:"Şifreler eşleşmiyor.",errEmail:"Geçerli e-posta girin.",
-  okRegister:"Hesap oluşturuldu!",
+  okRegister:"Hesap oluşturuldu! Giriş yapabilirsiniz.",
   dashboard:"Panel",exchange:"Exchange",history:"Geçmiş",wallet:"Cüzdan",admin:"Admin",logout:"Çıkış",
-  buyPrice:"Alış",sellPrice:"Satış",yourOpay:"OPAY",yourUsdt:"USDT",
-  spread:"Spread",lastUpdate:"son güncelleme",loading:"Yükleniyor...",
+  buyPrice:"Alış Fiyatı",sellPrice:"Satış Fiyatı",yourOpay:"OPAY Bakiye",yourUsdt:"USDT Bakiye",
+  spread:"Spread",lastUpdate:"son güncelleme",
   chartTitle:"OPAY TOKEN Fiyat Grafiği",startP:"Başlangıç",currentP:"Güncel",totalGain:"Toplam Artış",
   platformInfo:"Platform Bilgisi",
-  iT1:"Güvenli Platform",iD1:"Sadece bu site üzerinden alım satım",
-  iT2:"Sürekli Artan Değer",iD2:"Her gün yönetici tarafından belirlenen fiyat",
-  iT3:"Anında İşlem",iD3:"USDT ↔ OPAY TOKEN kolay dönüşüm",
-  iT4:"Sabit Spread",iD4:"Şeffaf ve sabit alım satım farkı",
-  buyOpay:"▲ OPAY AL",sellOpay:"▼ OPAY SAT",
-  opayBal:"OPAY",usdtBal:"USDT",
+  buyOpay:"▲ OPAY AL",sellOpay:"▼ OPAY SAT",opayBal:"OPAY",usdtBal:"USDT",
   amtBuy:"Almak istediğiniz OPAY",amtSell:"Satmak istediğiniz OPAY",
   willGet:"Alacağınız",willPay:"Ödenecek USDT",willSell:"Satacağınız",willGetU:"Alacağınız USDT",
   minWarn:"⚠️ Min 10 USDT",btnBuy:"✅ OPAY SATIN AL",btnSell:"💱 OPAY SAT",
-  errUsdt:"Yetersiz USDT.",errOpay:"Yetersiz OPAY.",errAmt:"Geçerli miktar.",errMinSell:"Min 10 USDT.",
+  errUsdt:"Yetersiz USDT.",errOpay:"Yetersiz OPAY.",errAmt:"Geçerli miktar girin.",errMinSell:"Min satış 10 USDT.",
   msgBought:"✅ {amt} OPAY aldınız ({usdt} USDT)",msgSold:"✅ {amt} OPAY sattınız ({usdt} USDT)",
   histTitle:"İşlem Geçmişi",noHist:"Henüz işlem yok.",tagBuy:"▲ ALIM",tagSell:"▼ SATIM",
-  adminPrice:"Fiyat Yönetimi",curBuy:"Mevcut alış:",newBuyLbl:"Yeni alış fiyatı",
-  updateBtn:"Güncelle",msgPriceOk:"✅ Fiyat güncellendi",errPrice:"⚠️ Daha yüksek fiyat girin.",
+  adminPrice:"Fiyat Yönetimi",curBuy:"Mevcut alış:",newBuyLbl:"Yeni alış fiyatı (USDT)",
+  updateBtn:"Fiyatı Güncelle",msgPriceOk:"✅ Fiyat güncellendi",errPrice:"⚠️ Daha yüksek fiyat girin.",
   phTitle:"Fiyat Geçmişi",dailyChg:"Değişim",
-  spreadLbl:"Spread %",spreadSave:"Kaydet",spreadSaved:"✅ Spread kaydedildi.",
-  cntTitle:"Platform Kartları",saveBtn:"Kaydet",msgSaved:"✅ Kaydedildi.",cancelBtn:"İptal",
-  userTitle:"Kullanıcı Yönetimi",searchU:"Ara…",noUsers:"Kullanıcı yok.",
-  adjFor:"Bakiye:",amtLbl:"Miktar",applyBtn:"Uygula",msgBalOk:"✅ Güncellendi.",
+  spreadLbl:"Spread %",spreadSave:"Spread Kaydet",spreadSaved:"✅ Spread kaydedildi.",
+  cntTitle:"Platform Kartları (düzenlenebilir)",saveBtn:"Kaydet",msgSaved:"✅ Kaydedildi.",cancelBtn:"İptal",
+  userTitle:"Kullanıcı Yönetimi",searchU:"Kullanıcı ara…",noUsers:"Kullanıcı bulunamadı.",
+  adjFor:"Bakiye düzenle:",amtLbl:"Miktar",applyBtn:"Uygula",msgBalOk:"✅ Bakiye güncellendi.",
   addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",
   deposit:"Para Yatır",withdraw:"Para Çek",depHistory:"Geçmiş",
-  depTitle:"USDT Yatır",wdTitle:"USDT Çek",depAmt:"Miktar",depCoin:"Coin",depNetwork:"Ağ",depBtn:"Ödeme Oluştur",
+  depTitle:"USDT Yatır",wdTitle:"USDT Çek",depAmt:"Miktar (USDT)",depCoin:"Coin",depNetwork:"Ağ",depBtn:"Ödeme Oluştur",
   depNote:"Cryptomus ödeme sayfasına yönlendirileceksiniz.",
-  wdAmt:"Miktar (min 10)",wdAddr:"Cüzdan adresi",wdNet:"Ağ",wdBtn:"Çekim Talebi",
-  wdNote:"24 saat içinde işlenir.",wdPending:"⏳ Talebiniz alındı.",depPending:"✅ Cryptomus açılıyor…",
-  errWdMin:"Min 10 USDT.",errWdAddr:"Geçerli adres girin.",errWdBal:"Yetersiz USDT.",errAmt2:"Geçerli miktar.",
+  wdAmt:"Miktar (min 10 USDT)",wdAddr:"Cüzdan adresi",wdNet:"Ağ",wdBtn:"Çekim Talebi Gönder",
+  wdNote:"24 saat içinde işlenir.",wdPending:"⏳ Çekim talebiniz alındı.",depPending:"✅ Cryptomus açılıyor…",
+  errWdMin:"Min çekim 10 USDT.",errWdAddr:"Geçerli adres girin.",errWdBal:"Yetersiz USDT.",errAmt2:"Geçerli miktar girin.",
   noWalletTx:"Geçmiş yok.",statusPending:"Bekliyor",statusDone:"Tamamlandı",statusFailed:"Başarısız",
-  networkNote:"Doğru ağı seçin.",cmSetup:"Cryptomus Anahtarları",cmSavedMsg:"✅ Kaydedildi!",
+  networkNote:"Doğru ağı seçin, aksi halde fonlarınız kaybolabilir.",
+  cmSetup:"Cryptomus API Anahtarları",cmSavedMsg:"✅ Anahtarlar kaydedildi!",
   approveBtn:"✅ Onayla",rejectBtn:"❌ Reddet",
-  fbError:"Firebase bağlantı hatası. Lütfen sayfayı yenileyin.",
 };
 const EN={
   login:"Login",register:"Register",username:"Username",email:"Email",password:"Password",
   confirmPw:"Confirm Password",fullName:"Full Name",loginBtn:"Sign In",registerBtn:"Create Account",
   noAcc:"No account?",haveAcc:"Have an account?",signUp:"Sign up",signIn:"Sign in",
   welcomeBack:"Welcome back",createAcc:"Create account",tagline:"OPAY TOKEN Platform",
-  errLogin:"Wrong email or password.",errExists:"Username or email exists.",
-  errFields:"Fill all fields.",errPwMatch:"Passwords don't match.",errEmail:"Valid email required.",
-  okRegister:"Account created!",
+  errLogin:"Wrong username/email or password.",errExists:"Username or email already exists.",
+  errFields:"Fill all fields.",errPwMatch:"Passwords don't match.",errEmail:"Enter valid email.",
+  okRegister:"Account created! You can sign in.",
   dashboard:"Dashboard",exchange:"Exchange",history:"History",wallet:"Wallet",admin:"Admin",logout:"Logout",
-  buyPrice:"Buy",sellPrice:"Sell",yourOpay:"OPAY",yourUsdt:"USDT",
-  spread:"Spread",lastUpdate:"last update",loading:"Loading...",
+  buyPrice:"Buy Price",sellPrice:"Sell Price",yourOpay:"OPAY Balance",yourUsdt:"USDT Balance",
+  spread:"Spread",lastUpdate:"last update",
   chartTitle:"OPAY TOKEN Price Chart",startP:"Start",currentP:"Current",totalGain:"Total Gain",
-  platformInfo:"Platform Info",
-  iT1:"Secure Platform",iD1:"Trade only through this site",
-  iT2:"Growing Value",iD2:"Daily price set by admin",
-  iT3:"Instant Transactions",iD3:"Easy USDT ↔ OPAY conversion",
-  iT4:"Fixed Spread",iD4:"Transparent fixed buy/sell difference",
-  buyOpay:"▲ BUY OPAY",sellOpay:"▼ SELL OPAY",
-  opayBal:"OPAY",usdtBal:"USDT",
+  platformInfo:"Platform Information",
+  buyOpay:"▲ BUY OPAY",sellOpay:"▼ SELL OPAY",opayBal:"OPAY",usdtBal:"USDT",
   amtBuy:"Amount of OPAY to buy",amtSell:"Amount of OPAY to sell",
-  willGet:"You receive",willPay:"You pay (USDT)",willSell:"You sell",willGetU:"You receive (USDT)",
+  willGet:"You will receive",willPay:"You will pay (USDT)",willSell:"You will sell",willGetU:"You will receive (USDT)",
   minWarn:"⚠️ Min 10 USDT",btnBuy:"✅ BUY OPAY",btnSell:"💱 SELL OPAY",
-  errUsdt:"Insufficient USDT.",errOpay:"Insufficient OPAY.",errAmt:"Valid amount.",errMinSell:"Min 10 USDT.",
+  errUsdt:"Insufficient USDT.",errOpay:"Insufficient OPAY.",errAmt:"Enter valid amount.",errMinSell:"Min sell 10 USDT.",
   msgBought:"✅ Bought {amt} OPAY ({usdt} USDT)",msgSold:"✅ Sold {amt} OPAY ({usdt} USDT)",
-  histTitle:"Transaction History",noHist:"No transactions.",tagBuy:"▲ BUY",tagSell:"▼ SELL",
-  adminPrice:"Price Management",curBuy:"Current buy:",newBuyLbl:"New buy price",
-  updateBtn:"Update",msgPriceOk:"✅ Price updated",errPrice:"⚠️ Enter higher price.",
+  histTitle:"Transaction History",noHist:"No transactions yet.",tagBuy:"▲ BUY",tagSell:"▼ SELL",
+  adminPrice:"Price Management",curBuy:"Current buy:",newBuyLbl:"New buy price (USDT)",
+  updateBtn:"Update Price",msgPriceOk:"✅ Price updated",errPrice:"⚠️ Enter higher price.",
   phTitle:"Price History",dailyChg:"Change",
-  spreadLbl:"Spread %",spreadSave:"Save",spreadSaved:"✅ Spread saved.",
-  cntTitle:"Platform Cards",saveBtn:"Save",msgSaved:"✅ Saved.",cancelBtn:"Cancel",
-  userTitle:"User Management",searchU:"Search…",noUsers:"No users.",
-  adjFor:"Balance:",amtLbl:"Amount",applyBtn:"Apply",msgBalOk:"✅ Updated.",
+  spreadLbl:"Spread %",spreadSave:"Save Spread",spreadSaved:"✅ Spread saved.",
+  cntTitle:"Platform Cards (editable)",saveBtn:"Save",msgSaved:"✅ Saved.",cancelBtn:"Cancel",
+  userTitle:"User Management",searchU:"Search users…",noUsers:"No users found.",
+  adjFor:"Adjust balance:",amtLbl:"Amount",applyBtn:"Apply",msgBalOk:"✅ Balance updated.",
   addO:"+ OPAY",addU:"+ USDT",remO:"− OPAY",remU:"− USDT",
   deposit:"Deposit",withdraw:"Withdraw",depHistory:"History",
-  depTitle:"Deposit USDT",wdTitle:"Withdraw USDT",depAmt:"Amount",depCoin:"Coin",depNetwork:"Network",depBtn:"Create Payment",
-  depNote:"You will be redirected to Cryptomus.",
-  wdAmt:"Amount (min 10)",wdAddr:"Wallet address",wdNet:"Network",wdBtn:"Submit Withdrawal",
-  wdNote:"Processed within 24h.",wdPending:"⏳ Submitted.",depPending:"✅ Opening Cryptomus…",
-  errWdMin:"Min 10 USDT.",errWdAddr:"Valid address required.",errWdBal:"Insufficient USDT.",errAmt2:"Valid amount.",
-  noWalletTx:"No history.",statusPending:"Pending",statusDone:"Done",statusFailed:"Failed",
-  networkNote:"Select correct network.",cmSetup:"Cryptomus API Keys",cmSavedMsg:"✅ Saved!",
+  depTitle:"Deposit USDT",wdTitle:"Withdraw USDT",depAmt:"Amount (USDT)",depCoin:"Coin",depNetwork:"Network",depBtn:"Create Payment",
+  depNote:"You will be redirected to Cryptomus payment page.",
+  wdAmt:"Amount (min 10 USDT)",wdAddr:"Wallet address",wdNet:"Network",wdBtn:"Submit Withdrawal",
+  wdNote:"Withdrawals processed within 24h.",wdPending:"⏳ Withdrawal submitted.",depPending:"✅ Opening Cryptomus…",
+  errWdMin:"Min 10 USDT.",errWdAddr:"Enter valid address.",errWdBal:"Insufficient USDT.",errAmt2:"Enter valid amount.",
+  noWalletTx:"No history yet.",statusPending:"Pending",statusDone:"Done",statusFailed:"Failed",
+  networkNote:"Select correct network to avoid loss of funds.",
+  cmSetup:"Cryptomus API Keys",cmSavedMsg:"✅ Keys saved!",
   approveBtn:"✅ Approve",rejectBtn:"❌ Reject",
-  fbError:"Firebase connection error. Please reload.",
 };
 const LANGS=[
   {code:"en",flag:"🇺🇸",label:"English"},{code:"tr",flag:"🇹🇷",label:"Türkçe"},
@@ -174,47 +136,30 @@ function T(lang,key,vars){
   return s;
 }
 
-// ═══════════════════════════════════════
-// DEFAULTS
-// ═══════════════════════════════════════
-const DEF_PRICES=[
-  {date:"2025-01-01",buy:1.000},{date:"2025-06-01",buy:1.485},
-  {date:"2025-12-01",buy:1.997},{date:"2026-04-01",buy:2.460},{date:"2026-06-29",buy:2.850},
-];
-const DEF_CARDS=[
-  {icon:"🔒",tk:"iT1",dk:"iD1"},{icon:"📈",tk:"iT2",dk:"iD2"},
-  {icon:"⚡",tk:"iT3",dk:"iD3"},{icon:"💱",tk:"iT4",dk:"iD4"},
-];
-
-// ═══════════════════════════════════════
-// PRICE CHART
-// ═══════════════════════════════════════
+// ── Chart ──
 function Chart({history}){
   if(!history||history.length<2) return null;
-  const W=560,H=170,PL=46,PT=8,PR=8,PB=28;
+  const W=540,H=160,PL=44,PT=8,PR=8,PB=26;
   const pw=W-PL-PR,ph=H-PT-PB;
   const ps=history.map(h=>parseFloat(h.buy));
   const mn=Math.min(...ps)*0.97,mx=Math.max(...ps)*1.02;
   const xi=i=>PL+i*(pw/(history.length-1));
   const yi=v=>PT+ph-((v-mn)/(mx-mn))*ph;
-  const pts=history.map((_,i)=>[xi(i),yi(parseFloat(history[i].buy))]);
+  const pts=history.map((_,i)=>[xi(i),yi(ps[i])]);
   const line=pts.map((p,i)=>(i===0?"M":"L")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
   const area=line+" L"+pts[pts.length-1][0]+","+(PT+ph)+" L"+pts[0][0]+","+(PT+ph)+" Z";
   return(
     <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:"auto",display:"block"}}>
       <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#00C896" stopOpacity="0.3"/><stop offset="100%" stopColor="#00C896" stopOpacity="0.02"/></linearGradient></defs>
       {[mn,(mn+mx)/2,mx].map((t,i)=><g key={i}><line x1={PL} y1={yi(t)} x2={PL+pw} y2={yi(t)} stroke="#ffffff08" strokeWidth="1"/><text x={PL-3} y={yi(t)+4} textAnchor="end" fill="#445" fontSize="10">${t.toFixed(2)}</text></g>)}
-      {[0,Math.floor(history.length/2),history.length-1].map(i=><text key={i} x={xi(i)} y={H-3} textAnchor="middle" fill="#445" fontSize="9">{history[i].date.slice(0,7)}</text>)}
-      <path d={area} fill="url(#g)"/>
-      <path d={line} fill="none" stroke="#00C896" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {[0,Math.floor(history.length/2),history.length-1].map(i=><text key={i} x={xi(i)} y={H-2} textAnchor="middle" fill="#445" fontSize="9">{history[i].date.slice(0,7)}</text>)}
+      <path d={area} fill="url(#g)"/><path d={line} fill="none" stroke="#00C896" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
       <circle cx={pts[pts.length-1][0]} cy={pts[pts.length-1][1]} r="4" fill="#00C896" stroke="#0a1628" strokeWidth="2"/>
     </svg>
   );
 }
 
-// ═══════════════════════════════════════
-// LANG PICKER
-// ═══════════════════════════════════════
+// ── Lang Picker ──
 function LangPicker({lang,setLang}){
   const [open,setOpen]=useState(false);
   const cur=LANGS.find(l=>l.code===lang)||LANGS[0];
@@ -224,45 +169,50 @@ function LangPicker({lang,setLang}){
         {cur.flag} <span style={{maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cur.label}</span> ▾
       </button>
       {open&&(
-        <div style={{position:"fixed",right:10,top:55,background:"#0d1a2d",border:"1px solid #1a2d4a",borderRadius:9,zIndex:9999,maxHeight:260,overflowY:"auto",width:170,boxShadow:"0 8px 24px #000c"}}>
-          {LANGS.map(l=>(
-            <div key={l.code} onClick={()=>{setLang(l.code);setOpen(false);localStorage.setItem("ol",l.code);}}
-              style={{padding:"7px 11px",cursor:"pointer",fontSize:12,color:l.code===lang?"#00C896":"#cdd",display:"flex",gap:7,alignItems:"center",background:l.code===lang?"#00C89610":"transparent"}}>
-              {l.flag} {l.label}
-            </div>
-          ))}
+        <div style={{position:"fixed",right:10,top:54,background:"#0d1a2d",border:"1px solid #1a2d4a",borderRadius:9,zIndex:9999,maxHeight:260,overflowY:"auto",width:170,boxShadow:"0 8px 24px #000c"}}>
+          {LANGS.map(l=>(<div key={l.code} onClick={()=>{setLang(l.code);setOpen(false);localStorage.setItem("ol",l.code);}} style={{padding:"7px 11px",cursor:"pointer",fontSize:12,color:l.code===lang?"#00C896":"#cdd",display:"flex",gap:7,alignItems:"center",background:l.code===lang?"#00C89610":"transparent"}}>{l.flag} {l.label}</div>))}
         </div>
       )}
     </div>
   );
 }
 
-// ═══════════════════════════════════════
+// ══════════════════════════════
 // MAIN APP
-// ═══════════════════════════════════════
+// ══════════════════════════════
 function App(){
   const [lang,setLang]=useState(()=>localStorage.getItem("ol")||"en");
   const t=(k,v)=>T(lang,k,v);
 
-  // Firebase state
-  const [fb,setFb]=useState(null); // {db,auth,mods}
-  const [fbStatus,setFbStatus]=useState("loading"); // loading | ok | error
+  // State — loaded from localStorage
+  const [users,setUsers]=useState(()=>LS.get("opay_users",DEF_USERS));
+  const [prices,setPrices]=useState(()=>LS.get("opay_prices",DEF_PRICES));
+  const [spread,setSpread]=useState(()=>LS.get("opay_spread",2));
+  const [cards,setCards]=useState(()=>LS.get("opay_cards",DEF_CARDS));
+  const [txs,setTxs]=useState(()=>LS.get("opay_txs",[]));
+  const [wtxs,setWtxs]=useState(()=>LS.get("opay_wtxs",[]));
+  const [cmKey,setCmKey]=useState(()=>LS.get("opay_cmk",""));
+  const [cmSec,setCmSec]=useState(()=>LS.get("opay_cms",""));
+  const [session,setSession]=useState(()=>LS.get("opay_session",null));
 
-  // Auth
-  const [user,setUser]=useState(undefined); // undefined=checking
-  const [profile,setProfile]=useState(null);
+  // Save to localStorage on change
+  useEffect(()=>LS.set("opay_users",users),[users]);
+  useEffect(()=>LS.set("opay_prices",prices),[prices]);
+  useEffect(()=>LS.set("opay_spread",spread),[spread]);
+  useEffect(()=>LS.set("opay_cards",cards),[cards]);
+  useEffect(()=>LS.set("opay_txs",txs),[txs]);
+  useEffect(()=>LS.set("opay_wtxs",wtxs),[wtxs]);
+  useEffect(()=>LS.set("opay_session",session),[session]);
 
-  // Data
-  const [prices,setPrices]=useState(DEF_PRICES);
-  const [spread,setSpread]=useState(2);
-  const [cards,setCards]=useState(DEF_CARDS);
-  const [cmKey,setCmKey]=useState("");const [cmSec,setCmSec]=useState("");
-  const [myTxs,setMyTxs]=useState([]);
-  const [myWTxs,setMyWTxs]=useState([]);
-  const [allUsers,setAllUsers]=useState({});
-  const [allWTxs,setAllWTxs]=useState([]);
+  const cur=session?users[session]:null;
+  const last=prices[prices.length-1]||{buy:2.85};
+  const buyP=parseFloat(last.buy)||2.85;
+  const sellP=parseFloat((buyP*(1-spread/100)).toFixed(4));
+  const prev=prices.length>1?parseFloat(prices[prices.length-2].buy):buyP;
+  const chg=((buyP-prev)/prev*100).toFixed(2);
+  const isUp=parseFloat(chg)>=0;
 
-  // UI
+  // UI state
   const [page,setPage]=useState("dashboard");
   const [authMode,setAuthMode]=useState("login");
   const [aUser,setAUser]=useState("");const [aEmail,setAEmail]=useState("");const [aName,setAName]=useState("");
@@ -278,183 +228,99 @@ function App(){
   const [depAmt,setDepAmt]=useState("");const [depCoin,setDepCoin]=useState("USDT");const [depNet,setDepNet]=useState("TRON");const [depMsg,setDepMsg]=useState("");
   const [wdAmt,setWdAmt]=useState("");const [wdAddr,setWdAddr]=useState("");const [wdNet,setWdNet]=useState("TRON");const [wdMsg,setWdMsg]=useState("");
   const [cmSaved,setCmSaved]=useState(false);
-  const [spreadIn,setSpreadIn]=useState("2");const [spreadMsg,setSpreadMsg]=useState("");
+  const [spreadIn,setSpreadIn]=useState(String(spread));const [spreadMsg,setSpreadMsg]=useState("");
   const [editP,setEditP]=useState(null);const [phMsg,setPhMsg]=useState("");
 
-  const last=prices[prices.length-1]||{buy:2.85};
-  const buyP=parseFloat(last.buy)||2.85;
-  const sellP=parseFloat((buyP*(1-spread/100)).toFixed(4));
-  const prev=prices.length>1?parseFloat(prices[prices.length-2].buy):buyP;
-  const chg=((buyP-prev)/prev*100).toFixed(2);
-  const isUp=parseFloat(chg)>=0;
-
-  // Init Firebase
-  useEffect(()=>{
-    initFirebase().then(result=>{
-      if(result){
-        setFb(result);
-        setFbStatus("ok");
-      } else {
-        setFbStatus("error");
-        setUser(null);
-      }
-    });
-  },[]);
-
-  // Auth listener
-  useEffect(()=>{
-    if(!fb) return;
-    const {auth,mods}=fb;
-    const unsub=mods.onAuthStateChanged(auth,u=>{
-      setUser(u);
-      if(!u){setProfile(null);setPage("dashboard");}
-    });
-    return ()=>unsub();
-  },[fb]);
-
-  // Global settings
-  useEffect(()=>{
-    if(!fb) return;
-    const {db,mods}=fb;
-    const {ref,onValue}=mods;
-    onValue(ref(db,"settings/prices"),s=>{const v=s.val();if(v)setPrices(Array.isArray(v)?v:Object.values(v));});
-    onValue(ref(db,"settings/spread"),s=>{const v=s.val();if(v!=null){setSpread(parseFloat(v));setSpreadIn(String(v));}});
-    onValue(ref(db,"settings/cards"),s=>{const v=s.val();if(v)setCards(Array.isArray(v)?v:Object.values(v));});
-    onValue(ref(db,"settings/cm"),s=>{const v=s.val()||{};if(v.k)setCmKey(v.k);if(v.s)setCmSec(v.s);});
-  },[fb]);
-
-  // User data
-  useEffect(()=>{
-    if(!fb||!user) return;
-    const {db,mods}=fb;
-    const {ref,onValue}=mods;
-    onValue(ref(db,"users/"+user.uid),s=>{const v=s.val();if(v)setProfile({...v,uid:user.uid});});
-    onValue(ref(db,"transactions/"+user.uid),s=>{const v=s.val()||{};setMyTxs(Object.values(v).sort((a,b)=>b.ts-a.ts));});
-    onValue(ref(db,"walletTxs/"+user.uid),s=>{const v=s.val()||{};setMyWTxs(Object.values(v).sort((a,b)=>b.ts-a.ts));});
-  },[fb,user]);
-
-  // Admin data
-  useEffect(()=>{
-    if(!fb||!profile?.isAdmin) return;
-    const {db,mods}=fb;
-    const {ref,onValue}=mods;
-    onValue(ref(db,"users"),s=>setAllUsers(s.val()||{}));
-    onValue(ref(db,"walletTxs"),s=>{
-      const raw=s.val()||{};const flat=[];
-      Object.entries(raw).forEach(([uid,m])=>Object.values(m).forEach(tx=>flat.push({...tx,uid})));
-      setAllWTxs(flat.sort((a,b)=>b.ts-a.ts));
-    });
-  },[fb,profile?.isAdmin]);
-
-  // Helpers
-  const dbSet=async(path,val)=>{
-    const {db,mods}=fb;
-    await mods.set(mods.ref(db,path),val);
-  };
-  const dbUpdate=async(path,val)=>{
-    const {db,mods}=fb;
-    await mods.update(mods.ref(db,path),val);
-  };
-  const dbGet=async(path)=>{
-    const {db,mods}=fb;
-    const s=await mods.get(mods.ref(db,path));
-    return s.val();
-  };
-
   // AUTH
-  async function doLogin(){
+  function doLogin(){
     setAErr("");setAOk("");
     if(!aEmail||!aPw){setAErr(t("errFields"));return;}
-    try{await fb.mods.signInWithEmailAndPassword(fb.auth,aEmail,aPw);}
-    catch(e){setAErr(t("errLogin"));}
+    const u=Object.entries(users).find(([k,v])=>(k===aEmail||v.email===aEmail||k===aEmail)&&v.pw===aPw);
+    if(!u){setAErr(t("errLogin"));return;}
+    setSession(u[0]);setPage("dashboard");setAUser("");setAPw("");
   }
-  async function doRegister(){
+  function doRegister(){
     setAErr("");setAOk("");
     if(!aName||!aUser||!aEmail||!aPw||!aCPw){setAErr(t("errFields"));return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(aEmail)){setAErr(t("errEmail"));return;}
     if(aPw!==aCPw){setAErr(t("errPwMatch"));return;}
-    try{
-      const c=await fb.mods.createUserWithEmailAndPassword(fb.auth,aEmail,aPw);
-      const uid=c.user.uid;
-      const sn=await dbGet("usernames/"+aUser);
-      if(sn){await fb.mods.deleteUser(c.user);setAErr(t("errExists"));return;}
-      await dbSet("users/"+uid,{username:aUser,name:aName,email:aEmail,usdt:0,opay:0,isAdmin:false});
-      await dbSet("usernames/"+aUser,uid);
-      setAOk(t("okRegister"));setAuthMode("login");
-      setAUser("");setAPw("");setACPw("");setAName("");setAEmail("");
-    }catch(e){setAErr(e.message);}
+    if(users[aUser]||Object.values(users).find(v=>v.email===aEmail)){setAErr(t("errExists"));return;}
+    setUsers(p=>({...p,[aUser]:{pw:aPw,name:aName,email:aEmail,usdt:0,opay:0,isAdmin:false}}));
+    setAOk(t("okRegister"));setAuthMode("login");
+    setAUser("");setAPw("");setACPw("");setAName("");setAEmail("");
   }
-  function doLogout(){fb.mods.signOut(fb.auth);}
+  function doLogout(){setSession(null);setPage("dashboard");}
 
   // EXCHANGE
-  async function doExchange(){
+  function doExchange(){
     const amt=parseFloat(exAmt);
     if(!amt||amt<=0){setExMsg(t("errAmt"));return;}
-    const u=await dbGet("users/"+user.uid);
-    const ts=Date.now();
+    const u={...users[session]};
     if(exMode==="buy"){
       const cost=parseFloat((amt*buyP).toFixed(6));
       if(cost>u.usdt){setExMsg(t("errUsdt"));return;}
-      await dbSet("transactions/"+user.uid+"/"+ts,{type:"buy",opay:amt,usdt:cost,price:buyP,date:new Date().toISOString().slice(0,16).replace("T"," "),ts});
-      await dbUpdate("users/"+user.uid,{usdt:parseFloat((u.usdt-cost).toFixed(6)),opay:parseFloat((u.opay+amt).toFixed(6))});
+      u.usdt=parseFloat((u.usdt-cost).toFixed(6));
+      u.opay=parseFloat((u.opay+amt).toFixed(6));
+      const tx={id:Date.now(),user:session,type:"buy",opay:amt,usdt:cost,price:buyP,date:new Date().toISOString().slice(0,16).replace("T"," ")};
+      setTxs(p=>[tx,...p]);
       setExMsg(t("msgBought",{amt:amt.toFixed(2),usdt:cost.toFixed(4)}));
     }else{
       if(amt>u.opay){setExMsg(t("errOpay"));return;}
       const get=parseFloat((amt*sellP).toFixed(6));
       if(get<10){setExMsg(t("errMinSell"));return;}
-      await dbSet("transactions/"+user.uid+"/"+ts,{type:"sell",opay:amt,usdt:get,price:sellP,date:new Date().toISOString().slice(0,16).replace("T"," "),ts});
-      await dbUpdate("users/"+user.uid,{opay:parseFloat((u.opay-amt).toFixed(6)),usdt:parseFloat((u.usdt+get).toFixed(6))});
+      u.opay=parseFloat((u.opay-amt).toFixed(6));
+      u.usdt=parseFloat((u.usdt+get).toFixed(6));
+      const tx={id:Date.now(),user:session,type:"sell",opay:amt,usdt:get,price:sellP,date:new Date().toISOString().slice(0,16).replace("T"," ")};
+      setTxs(p=>[tx,...p]);
       setExMsg(t("msgSold",{amt:amt.toFixed(2),usdt:get.toFixed(4)}));
     }
-    setExAmt("");
+    setUsers(p=>({...p,[session]:u}));setExAmt("");
   }
 
   // ADMIN
-  async function doUpdatePrice(){
+  function doUpdatePrice(){
     const p=parseFloat(newP);
     if(!p||p<=buyP){setPrMsg(t("errPrice"));return;}
-    await dbSet("settings/prices",[...prices,{date:new Date().toISOString().slice(0,10),buy:p}]);
+    setPrices(pr=>[...pr,{date:new Date().toISOString().slice(0,10),buy:p}]);
     setPrMsg(t("msgPriceOk"));setNewP("");
   }
-  async function doSaveSpread(){
+  function doSaveSpread(){
     const s=parseFloat(spreadIn);
-    if(isNaN(s)||s<0||s>50){setSpreadMsg("⚠️ 0-50");return;}
-    await dbSet("settings/spread",s);setSpreadMsg(t("spreadSaved"));
+    if(isNaN(s)||s<0||s>50){setSpreadMsg("⚠️ 0-50 arası");return;}
+    setSpread(s);setSpreadMsg(t("spreadSaved"));
   }
-  async function saveEditedPrice(){
+  function saveEditedPrice(){
     if(!editP) return;
     const p=parseFloat(editP.buy);
     if(!p){setPhMsg("⚠️ Geçersiz");return;}
     const upd=[...prices];upd[editP.idx]={date:editP.date,buy:p};
-    await dbSet("settings/prices",upd);setEditP(null);setPhMsg("✅ Güncellendi.");
+    setPrices(upd);setEditP(null);setPhMsg("✅ Güncellendi.");
   }
-  async function delPrice(idx){
-    await dbSet("settings/prices",prices.filter((_,i)=>i!==idx));setPhMsg("✅ Silindi.");
-  }
-  async function saveCards(){
-    await dbSet("settings/cards",editCards);setCards(editCards);setEditCards(null);setCntMsg(t("msgSaved"));
-  }
-  function openAdj(uid,type){setAdjUser(uid);setAdjType(type);setAdjAmt("");setAdjMsg("");}
-  async function doAdj(){
+  function delPrice(idx){setPrices(p=>p.filter((_,i)=>i!==idx));setPhMsg("✅ Silindi.");}
+  function saveCards(){LS.set("opay_cards",editCards);setCards(editCards);setEditCards(null);setCntMsg(t("msgSaved"));}
+  function openAdj(u,type){setAdjUser(u);setAdjType(type);setAdjAmt("");setAdjMsg("");}
+  function doAdj(){
     const amt=parseFloat(adjAmt);
     if(!amt||amt<0){setAdjMsg("Geçerli miktar.");return;}
-    const u=await dbGet("users/"+adjUser);
-    let upd={};
-    if(adjType==="addO") upd.opay=parseFloat(((u.opay||0)+amt).toFixed(6));
-    else if(adjType==="remO") upd.opay=Math.max(0,parseFloat(((u.opay||0)-amt).toFixed(6)));
-    else if(adjType==="addU") upd.usdt=parseFloat(((u.usdt||0)+amt).toFixed(6));
-    else if(adjType==="remU") upd.usdt=Math.max(0,parseFloat(((u.usdt||0)-amt).toFixed(6)));
-    await dbUpdate("users/"+adjUser,upd);setAdjMsg(t("msgBalOk"));setAdjAmt("");
+    setUsers(p=>{
+      const u={...p[adjUser]};
+      if(adjType==="addO") u.opay=parseFloat(((u.opay||0)+amt).toFixed(6));
+      else if(adjType==="remO") u.opay=Math.max(0,parseFloat(((u.opay||0)-amt).toFixed(6)));
+      else if(adjType==="addU") u.usdt=parseFloat(((u.usdt||0)+amt).toFixed(6));
+      else if(adjType==="remU") u.usdt=Math.max(0,parseFloat(((u.usdt||0)-amt).toFixed(6)));
+      return {...p,[adjUser]:u};
+    });
+    setAdjMsg(t("msgBalOk"));setAdjAmt("");
   }
-  async function saveCM(){await dbSet("settings/cm",{k:cmKey,s:cmSec});setCmSaved(true);}
+  function saveCM(){LS.set("opay_cmk",cmKey);LS.set("opay_cms",cmSec);setCmSaved(true);}
 
   // WALLET
   async function doDeposit(){
     setDepMsg("");
     const amt=parseFloat(depAmt);
     if(!amt||amt<=0){setDepMsg(t("errAmt2"));return;}
-    if(!cmKey||!cmSec){setDepMsg("⚠️ Cryptomus ayarlı değil.");return;}
-    const oid="DEP-"+Date.now()+"-"+user.uid;
+    if(!cmKey||!cmSec){setDepMsg("⚠️ Cryptomus ayarlı değil. Admin panelinden ayarlayın.");return;}
+    const oid="DEP-"+Date.now()+"-"+session;
     const body={amount:String(amt),currency:"USD",order_id:oid,url_return:window.location.href,network:depNet,to_currency:depCoin,lifetime:3600};
     try{
       const enc=new TextEncoder();
@@ -465,31 +331,35 @@ function App(){
       const res=await fetch("https://api.cryptomus.com/v1/payment",{method:"POST",headers:{"merchant":cmKey,"sign":sign,"Content-Type":"application/json"},body:JSON.stringify(body)});
       const data=await res.json();
       if(data?.result?.url){
-        const ts=Date.now();
-        await dbSet("walletTxs/"+user.uid+"/"+ts,{id:oid,type:"deposit",amt,coin:depCoin,net:depNet,status:"pending",date:new Date().toISOString().slice(0,16).replace("T"," "),ts,uid:user.uid});
+        const tx={id:oid,user:session,type:"deposit",amt,coin:depCoin,net:depNet,status:"pending",date:new Date().toISOString().slice(0,16).replace("T"," ")};
+        setWtxs(p=>[tx,...p]);
         setDepMsg(t("depPending"));setTimeout(()=>window.open(data.result.url,"_blank"),800);
       }else{setDepMsg("⚠️ "+(data?.errors?.join(", ")||data?.message||"Hata"));}
     }catch(e){setDepMsg("⚠️ "+e.message);}
   }
-  async function doWithdraw(){
+  function doWithdraw(){
     setWdMsg("");
     const amt=parseFloat(wdAmt);
     if(!amt||amt<10){setWdMsg(t("errWdMin"));return;}
     if(!wdAddr||wdAddr.length<10){setWdMsg(t("errWdAddr"));return;}
-    const u=await dbGet("users/"+user.uid);
-    if(amt>u.usdt){setWdMsg(t("errWdBal"));return;}
-    await dbUpdate("users/"+user.uid,{usdt:parseFloat((u.usdt-amt).toFixed(6))});
-    const ts=Date.now();
-    await dbSet("walletTxs/"+user.uid+"/"+ts,{type:"withdraw",amt,addr:wdAddr,net:wdNet,status:"pending",date:new Date().toISOString().slice(0,16).replace("T"," "),ts,uid:user.uid});
-    setWdMsg(t("wdPending"));setWdAmt("");setWdAddr("");
+    if(amt>(users[session].usdt||0)){setWdMsg(t("errWdBal"));return;}
+    setUsers(p=>{const u={...p[session]};u.usdt=parseFloat((u.usdt-amt).toFixed(6));return {...p,[session]:u};});
+    const tx={id:"WD-"+Date.now(),user:session,type:"withdraw",amt,addr:wdAddr,net:wdNet,status:"pending",date:new Date().toISOString().slice(0,16).replace("T"," ")};
+    setWtxs(p=>[tx,...p]);setWdMsg(t("wdPending"));setWdAmt("");setWdAddr("");
   }
-  async function approveTx(tx){
-    await dbUpdate("walletTxs/"+tx.uid+"/"+tx.ts,{status:"done"});
-    if(tx.type==="deposit"){const u=await dbGet("users/"+tx.uid);await dbUpdate("users/"+tx.uid,{usdt:parseFloat(((u.usdt||0)+tx.amt).toFixed(6))});}
+  function approveTx(id){
+    setWtxs(p=>p.map(tx=>{
+      if(tx.id!==id) return tx;
+      if(tx.type==="deposit") setUsers(u=>{const usr={...u[tx.user]};usr.usdt=parseFloat(((usr.usdt||0)+tx.amt).toFixed(6));return {...u,[tx.user]:usr};});
+      return {...tx,status:"done"};
+    }));
   }
-  async function rejectTx(tx){
-    await dbUpdate("walletTxs/"+tx.uid+"/"+tx.ts,{status:"failed"});
-    if(tx.type==="withdraw"){const u=await dbGet("users/"+tx.uid);await dbUpdate("users/"+tx.uid,{usdt:parseFloat(((u.usdt||0)+tx.amt).toFixed(6))});}
+  function rejectTx(id){
+    setWtxs(p=>p.map(tx=>{
+      if(tx.id!==id) return tx;
+      if(tx.type==="withdraw") setUsers(u=>{const usr={...u[tx.user]};usr.usdt=parseFloat(((usr.usdt||0)+tx.amt).toFixed(6));return {...u,[tx.user]:usr};});
+      return {...tx,status:"failed"};
+    }));
   }
 
   // STYLES
@@ -522,27 +392,13 @@ function App(){
     at:a=>({border:"none",borderRadius:6,padding:"5px 11px",cursor:"pointer",fontSize:11,fontWeight:a?600:400,background:a?"#00C89620":"transparent",color:a?C.G:C.mu}),
   };
 
-  // LOADING
-  if(fbStatus==="loading"||user===undefined) return(
-    <div style={{...S.app,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14,minHeight:"100vh"}}>
-      <div style={S.li}>OP</div>
-      <div style={{color:C.mu,fontSize:13}}>{t("loading")}</div>
-    </div>
-  );
+  const isAdmin=cur?.isAdmin===true;
+  const myTxs=txs.filter(tx=>tx.user===session);
+  const myWtxs=wtxs.filter(tx=>tx.user===session);
+  const allWtxs=wtxs;
 
-  // FIREBASE ERROR
-  if(fbStatus==="error") return(
-    <div style={{...S.app,display:"flex",alignItems:"center",justifyContent:"center",padding:20,minHeight:"100vh"}}>
-      <div style={{...S.card,maxWidth:340,textAlign:"center"}}>
-        <div style={{fontSize:36,marginBottom:12}}>⚠️</div>
-        <div style={{color:C.O,fontWeight:600,marginBottom:12}}>{t("fbError")}</div>
-        <button style={{...S.btn("p"),width:"100%"}} onClick={()=>window.location.reload()}>Yenile / Reload</button>
-      </div>
-    </div>
-  );
-
-  // LOGIN / REGISTER
-  if(!user) return(
+  // LOGIN
+  if(!session) return(
     <div style={S.app}>
       <div style={S.hdr}>
         <div style={S.logo}><div style={S.li}>OP</div><span style={S.lt}>OPAY TOKEN</span></div>
@@ -555,13 +411,11 @@ function App(){
             <div style={{fontWeight:700,fontSize:17,color:"#fff"}}>{authMode==="login"?t("welcomeBack"):t("createAcc")}</div>
             <div style={{color:C.mu,fontSize:11,marginTop:2}}>{t("tagline")}</div>
           </div>
-          {authMode==="register"&&(
-            <>
-              <div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("fullName")}</div><input style={S.inp} placeholder="John Doe" value={aName} onChange={e=>{setAName(e.target.value);setAErr("");}}/></div>
-              <div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("username")}</div><input style={S.inp} placeholder="username" value={aUser} onChange={e=>{setAUser(e.target.value);setAErr("");}}/></div>
-            </>
-          )}
-          <div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("email")}</div><input style={S.inp} type="email" placeholder="you@email.com" value={aEmail} onChange={e=>{setAEmail(e.target.value);setAErr("");}} onKeyDown={e=>e.key==="Enter"&&(authMode==="login"?doLogin():doRegister())}/></div>
+          {authMode==="register"&&(<>
+            <div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("fullName")}</div><input style={S.inp} placeholder="Ad Soyad" value={aName} onChange={e=>{setAName(e.target.value);setAErr("");}}/></div>
+            <div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("username")}</div><input style={S.inp} placeholder="kullanici_adi" value={aUser} onChange={e=>{setAUser(e.target.value);setAErr("");}}/></div>
+          </>)}
+          <div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("email")}</div><input style={S.inp} type="email" placeholder="email@example.com" value={aEmail} onChange={e=>{setAEmail(e.target.value);setAErr("");}} onKeyDown={e=>e.key==="Enter"&&(authMode==="login"?doLogin():doRegister())}/></div>
           <div style={{marginBottom:authMode==="register"?8:13}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("password")}</div><input style={S.inp} type="password" placeholder="••••••••" value={aPw} onChange={e=>{setAPw(e.target.value);setAErr("");}} onKeyDown={e=>e.key==="Enter"&&(authMode==="login"?doLogin():doRegister())}/></div>
           {authMode==="register"&&(<div style={{marginBottom:13}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("confirmPw")}</div><input style={S.inp} type="password" placeholder="••••••••" value={aCPw} onChange={e=>{setACPw(e.target.value);setAErr("");}} onKeyDown={e=>e.key==="Enter"&&doRegister()}/></div>)}
           {aErr&&<div style={S.msg(false)}>{aErr}</div>}
@@ -580,16 +434,12 @@ function App(){
     </div>
   );
 
-  if(!profile) return(<div style={{...S.app,display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh"}}><div style={{color:C.mu}}>{t("loading")}</div></div>);
-
-  const isAdmin=profile.isAdmin===true;
   const navItems=[
     {id:"dashboard",label:t("dashboard")},{id:"exchange",label:t("exchange")},
-    {id:"history",label:t("history")},{id:"wallet",label:"💳"},
-    ...(isAdmin?[{id:"admin",label:"⚙️"}]:[]),
+    {id:"history",label:t("history")},{id:"wallet",label:"💳 "+t("wallet")},
+    ...(isAdmin?[{id:"admin",label:"⚙️ "+t("admin")}]:[]),
   ];
-  const rc=cards.map(c=>({icon:c.icon,title:c.tk?t(c.tk):c.title,desc:c.dk?t(c.dk):c.desc}));
-  const fu=Object.entries(allUsers).filter(([,u])=>(u.username||"").toLowerCase().includes(uSearch.toLowerCase())||(u.email||"").toLowerCase().includes(uSearch.toLowerCase()));
+  const fu=Object.entries(users).filter(([k,u])=>k.toLowerCase().includes(uSearch.toLowerCase())||(u.email||"").toLowerCase().includes(uSearch.toLowerCase())||(u.name||"").toLowerCase().includes(uSearch.toLowerCase()));
 
   return(
     <div style={S.app}>
@@ -607,162 +457,54 @@ function App(){
         {/* DASHBOARD */}
         {page==="dashboard"&&(<>
           <div style={S.row}>
-            <div style={S.stat}><div style={S.sl}>{t("buyPrice")}</div><div style={{...S.sv,color:C.G}}>${buyP.toFixed(4)}</div><div style={S.ss}><span style={{color:isUp?C.G:C.R}}>{isUp?"▲":"▼"}{Math.abs(chg)}%</span></div></div>
-            <div style={S.stat}><div style={S.sl}>{t("sellPrice")}</div><div style={{...S.sv,color:C.O}}>${sellP.toFixed(4)}</div><div style={S.ss}>{spread}%</div></div>
-            <div style={S.stat}><div style={S.sl}>{t("yourOpay")}</div><div style={S.sv}>{(profile.opay||0).toFixed(2)}</div><div style={{...S.ss,color:C.G}}>≈${((profile.opay||0)*sellP).toFixed(2)}</div></div>
-            <div style={S.stat}><div style={S.sl}>{t("yourUsdt")}</div><div style={S.sv}>{(profile.usdt||0).toFixed(2)}</div></div>
+            <div style={S.stat}><div style={S.sl}>{t("buyPrice")}</div><div style={{...S.sv,color:C.G}}>${buyP.toFixed(4)}</div><div style={S.ss}><span style={{color:isUp?C.G:C.R}}>{isUp?"▲":"▼"}{Math.abs(chg)}%</span> {t("lastUpdate")}</div></div>
+            <div style={S.stat}><div style={S.sl}>{t("sellPrice")}</div><div style={{...S.sv,color:C.O}}>${sellP.toFixed(4)}</div><div style={S.ss}>{t("spread")}: {spread}%</div></div>
+            <div style={S.stat}><div style={S.sl}>{t("yourOpay")}</div><div style={S.sv}>{(cur.opay||0).toFixed(2)}</div><div style={{...S.ss,color:C.G}}>≈${((cur.opay||0)*sellP).toFixed(2)}</div></div>
+            <div style={S.stat}><div style={S.sl}>{t("yourUsdt")}</div><div style={S.sv}>{(cur.usdt||0).toFixed(2)}</div></div>
           </div>
           <div style={S.card}><div style={S.ct}>{t("chartTitle")}</div><Chart history={prices}/><div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:C.mu}}><span>{t("startP")}: ${parseFloat(prices[0]?.buy||0).toFixed(3)}</span><span style={{color:C.G}}>${buyP.toFixed(4)}</span><span style={{color:C.G}}>+{prices[0]?.buy?((buyP/parseFloat(prices[0].buy)-1)*100).toFixed(1):"—"}%</span></div></div>
-          <div style={S.card}><div style={S.ct}>{t("platformInfo")}</div><div style={{...S.row,gap:8}}>{rc.map((c,i)=>(<div key={i} style={{flex:1,minWidth:120,background:C.bg,borderRadius:9,padding:11}}><div style={{fontSize:19,marginBottom:4}}>{c.icon}</div><div style={{fontWeight:600,fontSize:12,marginBottom:3}}>{c.title}</div><div style={{fontSize:11,color:C.mu}}>{c.desc}</div></div>))}</div></div>
+          <div style={S.card}><div style={S.ct}>{t("platformInfo")}</div><div style={{...S.row,gap:8}}>{cards.map((c,i)=>(<div key={i} style={{flex:1,minWidth:120,background:C.bg,borderRadius:9,padding:11}}><div style={{fontSize:19,marginBottom:4}}>{c.icon}</div><div style={{fontWeight:600,fontSize:12,marginBottom:3}}>{c.title}</div><div style={{fontSize:11,color:C.mu}}>{c.desc}</div></div>))}</div></div>
         </>)}
 
         {/* EXCHANGE */}
         {page==="exchange"&&(<div style={{maxWidth:440,margin:"0 auto"}}><div style={S.card}>
           <div style={S.ct}>{t("exchange")}</div>
-          <div style={{...S.row,gap:8,marginBottom:12}}>
-            <div style={{flex:1,background:C.bg,borderRadius:8,padding:10,textAlign:"center"}}><div style={{fontSize:10,color:C.mu,marginBottom:2}}>{t("buyPrice")}</div><div style={{fontWeight:700,fontSize:16,color:C.G}}>${buyP.toFixed(4)}</div></div>
-            <div style={{flex:1,background:C.bg,borderRadius:8,padding:10,textAlign:"center"}}><div style={{fontSize:10,color:C.mu,marginBottom:2}}>{t("sellPrice")}</div><div style={{fontWeight:700,fontSize:16,color:C.O}}>${sellP.toFixed(4)}</div></div>
-          </div>
-          <div style={{background:C.bg,borderRadius:8,padding:10,marginBottom:11,fontSize:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{color:C.mu}}>{t("opayBal")}:</span><span style={{fontWeight:600}}>{(profile.opay||0).toFixed(2)}</span></div><div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.mu}}>{t("usdtBal")}:</span><span style={{fontWeight:600}}>{(profile.usdt||0).toFixed(2)}</span></div></div>
-          <div style={{display:"flex",gap:3,marginBottom:11,background:C.bg,borderRadius:8,padding:3}}>
-            <button style={S.seg(exMode==="buy","b")} onClick={()=>{setExMode("buy");setExMsg("");setExAmt("");}}>{t("buyOpay")}</button>
-            <button style={S.seg(exMode==="sell","s")} onClick={()=>{setExMode("sell");setExMsg("");setExAmt("");}}>{t("sellOpay")}</button>
-          </div>
+          <div style={{...S.row,gap:8,marginBottom:12}}><div style={{flex:1,background:C.bg,borderRadius:8,padding:10,textAlign:"center"}}><div style={{fontSize:10,color:C.mu,marginBottom:2}}>{t("buyPrice")}</div><div style={{fontWeight:700,fontSize:16,color:C.G}}>${buyP.toFixed(4)}</div></div><div style={{flex:1,background:C.bg,borderRadius:8,padding:10,textAlign:"center"}}><div style={{fontSize:10,color:C.mu,marginBottom:2}}>{t("sellPrice")}</div><div style={{fontWeight:700,fontSize:16,color:C.O}}>${sellP.toFixed(4)}</div></div></div>
+          <div style={{background:C.bg,borderRadius:8,padding:10,marginBottom:11,fontSize:12}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{color:C.mu}}>{t("opayBal")}:</span><span style={{fontWeight:600}}>{(cur.opay||0).toFixed(2)}</span></div><div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.mu}}>{t("usdtBal")}:</span><span style={{fontWeight:600}}>{(cur.usdt||0).toFixed(2)}</span></div></div>
+          <div style={{display:"flex",gap:3,marginBottom:11,background:C.bg,borderRadius:8,padding:3}}><button style={S.seg(exMode==="buy","b")} onClick={()=>{setExMode("buy");setExMsg("");setExAmt("");}}>{t("buyOpay")}</button><button style={S.seg(exMode==="sell","s")} onClick={()=>{setExMode("sell");setExMsg("");setExAmt("");}}>{t("sellOpay")}</button></div>
           <div style={{marginBottom:10}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{exMode==="buy"?t("amtBuy"):t("amtSell")}</div><input style={S.inp} type="number" min="0" placeholder="0.00" value={exAmt} onChange={e=>{setExAmt(e.target.value);setExMsg("");}}/></div>
-          {exAmt&&parseFloat(exAmt)>0&&(<div style={{background:C.bg,borderRadius:8,padding:10,marginBottom:11,fontSize:12}}>
-            {exMode==="buy"?(<><div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{color:C.mu}}>{t("willGet")}:</span><span style={{color:C.G,fontWeight:700}}>{parseFloat(exAmt).toFixed(2)} OPAY</span></div><div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.mu}}>{t("willPay")}:</span><span style={{fontWeight:700}}>{(parseFloat(exAmt)*buyP).toFixed(4)} USDT</span></div></>):(<><div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{color:C.mu}}>{t("willSell")}:</span><span style={{color:C.O,fontWeight:700}}>{parseFloat(exAmt).toFixed(2)} OPAY</span></div><div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{color:C.mu}}>{t("willGetU")}:</span><span style={{fontWeight:700}}>{(parseFloat(exAmt)*sellP).toFixed(4)} USDT</span></div>{parseFloat(exAmt)*sellP<10&&<div style={{...S.msg(false),padding:"3px 7px",marginTop:2}}>{t("minWarn")}</div>}</>)}
-          </div>)}
+          {exAmt&&parseFloat(exAmt)>0&&(<div style={{background:C.bg,borderRadius:8,padding:10,marginBottom:11,fontSize:12}}>{exMode==="buy"?(<><div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{color:C.mu}}>{t("willGet")}:</span><span style={{color:C.G,fontWeight:700}}>{parseFloat(exAmt).toFixed(2)} OPAY</span></div><div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.mu}}>{t("willPay")}:</span><span style={{fontWeight:700}}>{(parseFloat(exAmt)*buyP).toFixed(4)} USDT</span></div></>):(<><div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{color:C.mu}}>{t("willSell")}:</span><span style={{color:C.O,fontWeight:700}}>{parseFloat(exAmt).toFixed(2)} OPAY</span></div><div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{color:C.mu}}>{t("willGetU")}:</span><span style={{fontWeight:700}}>{(parseFloat(exAmt)*sellP).toFixed(4)} USDT</span></div>{parseFloat(exAmt)*sellP<10&&<div style={{...S.msg(false),padding:"3px 7px",marginTop:2}}>{t("minWarn")}</div>}</>)}</div>)}
           <button style={{...S.btn(exMode==="buy"?"p":"s"),width:"100%"}} onClick={doExchange}>{exMode==="buy"?t("btnBuy"):t("btnSell")}</button>
           {exMsg&&<div style={S.msg(exMsg.startsWith("✅"))}>{exMsg}</div>}
         </div></div>)}
 
         {/* HISTORY */}
-        {page==="history"&&(<div style={S.card}>
-          <div style={S.ct}>{t("histTitle")}</div>
-          {myTxs.length===0?<div style={{textAlign:"center",color:C.mu,padding:"24px 0"}}>{t("noHist")}</div>:(<div style={{overflowX:"auto"}}><table style={S.tbl}><thead><tr>{["Type","Date","OPAY","USDT","Price"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>{myTxs.map((tx,i)=>(<tr key={i}><td style={S.td}><span style={S.tag(tx.type)}>{tx.type==="buy"?t("tagBuy"):t("tagSell")}</span></td><td style={{...S.td,color:C.mu,fontSize:11}}>{tx.date}</td><td style={S.td}>{tx.opay?.toFixed(2)}</td><td style={S.td}>{tx.usdt?.toFixed(4)}</td><td style={{...S.td,color:tx.type==="buy"?C.G:C.O}}>${tx.price?.toFixed(4)}</td></tr>))}</tbody></table></div>)}
-        </div>)}
+        {page==="history"&&(<div style={S.card}><div style={S.ct}>{t("histTitle")}</div>{myTxs.length===0?<div style={{textAlign:"center",color:C.mu,padding:"24px 0"}}>{t("noHist")}</div>:(<div style={{overflowX:"auto"}}><table style={S.tbl}><thead><tr>{["Type","Date","OPAY","USDT","Price"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>{myTxs.map((tx,i)=>(<tr key={i}><td style={S.td}><span style={S.tag(tx.type)}>{tx.type==="buy"?t("tagBuy"):t("tagSell")}</span></td><td style={{...S.td,color:C.mu,fontSize:11}}>{tx.date}</td><td style={S.td}>{tx.opay?.toFixed(2)}</td><td style={S.td}>{tx.usdt?.toFixed(4)}</td><td style={{...S.td,color:tx.type==="buy"?C.G:C.O}}>${tx.price?.toFixed(4)}</td></tr>))}</tbody></table></div>)}</div>)}
 
         {/* WALLET */}
         {page==="wallet"&&(<div style={{maxWidth:480,margin:"0 auto"}}>
-          <div style={{display:"flex",gap:3,marginBottom:12,background:C.bg2,borderRadius:9,padding:3}}>
-            {["deposit","withdraw","history"].map(tp=>(<button key={tp} style={{flex:1,padding:"6px 0",border:"none",borderRadius:6,cursor:"pointer",fontWeight:600,fontSize:11,background:wTab===tp?"linear-gradient(135deg,#00C896,#0088cc)":"transparent",color:wTab===tp?"#fff":C.mu}} onClick={()=>{setWTab(tp);setDepMsg("");setWdMsg("");}}>
-              {tp==="deposit"?"⬇️ "+t("deposit"):tp==="withdraw"?"⬆️ "+t("withdraw"):"📋"}
-            </button>))}
-          </div>
-          {wTab==="deposit"&&(<div style={S.card}>
-            <div style={S.ct}>{t("depTitle")}</div>
-            {!cmKey&&<div style={{background:"#ff9f4a10",border:"1px solid #ff9f4a30",borderRadius:7,padding:9,fontSize:11,color:C.O,marginBottom:10}}>⚠️ Cryptomus ayarlı değil.</div>}
-            <div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("depAmt")}</div><input style={S.inp} type="number" min="1" placeholder="10.00" value={depAmt} onChange={e=>{setDepAmt(e.target.value);setDepMsg("");}}/></div>
-            <div style={{...S.row,gap:8,marginBottom:8}}>
-              <div style={{flex:1}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("depCoin")}</div><select style={{...S.inp,cursor:"pointer"}} value={depCoin} onChange={e=>setDepCoin(e.target.value)}>{["USDT","USDC","BTC","ETH","BNB","TRX","LTC","DOGE","XRP","SOL"].map(c=><option key={c}>{c}</option>)}</select></div>
-              <div style={{flex:1}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("depNetwork")}</div><select style={{...S.inp,cursor:"pointer"}} value={depNet} onChange={e=>setDepNet(e.target.value)}>{["TRON","ETH","BSC","POLYGON","SOL","BTC","LTC","XRP","DOGE"].map(n=><option key={n}>{n}</option>)}</select></div>
-            </div>
-            <div style={{...S.note,fontSize:11,marginBottom:10}}>⚠️ {t("networkNote")}</div>
-            <button style={{...S.btn("p"),width:"100%"}} onClick={doDeposit}>{t("depBtn")}</button>
-            {depMsg&&<div style={S.msg(depMsg.startsWith("✅"))}>{depMsg}</div>}
-          </div>)}
-          {wTab==="withdraw"&&(<div style={S.card}>
-            <div style={S.ct}>{t("wdTitle")}</div>
-            <div style={{background:C.bg,borderRadius:7,padding:10,marginBottom:10,fontSize:12}}><span style={{color:C.mu}}>USDT: </span><span style={{color:C.G,fontWeight:700}}>{(profile.usdt||0).toFixed(2)}</span></div>
-            <div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("wdAmt")}</div><input style={S.inp} type="number" min="10" placeholder="10.00" value={wdAmt} onChange={e=>{setWdAmt(e.target.value);setWdMsg("");}}/></div>
-            <div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("wdNet")}</div><select style={{...S.inp,cursor:"pointer"}} value={wdNet} onChange={e=>setWdNet(e.target.value)}>{["TRON","ETH","BSC","POLYGON","SOL","BTC","LTC","XRP","DOGE"].map(n=><option key={n}>{n}</option>)}</select></div>
-            <div style={{marginBottom:10}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("wdAddr")}</div><input style={S.inp} placeholder="T... / 0x..." value={wdAddr} onChange={e=>{setWdAddr(e.target.value);setWdMsg("");}}/></div>
-            <button style={{...S.btn("s"),width:"100%"}} onClick={doWithdraw}>{t("wdBtn")}</button>
-            {wdMsg&&<div style={S.msg(wdMsg.startsWith("✅")||wdMsg.startsWith("⏳"))}>{wdMsg}</div>}
-          </div>)}
-          {wTab==="history"&&(<div style={S.card}>
-            <div style={S.ct}>{t("depHistory")}</div>
-            {myWTxs.length===0?<div style={{textAlign:"center",color:C.mu,padding:"24px 0"}}>{t("noWalletTx")}</div>:(<div style={{overflowX:"auto"}}><table style={S.tbl}><thead><tr>{["Type","Date","USDT","Net","Status"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>{myWTxs.map((tx,i)=>(<tr key={i}><td style={S.td}><span style={{...S.tag(tx.type==="deposit"?"buy":"sell"),fontSize:10}}>{tx.type==="deposit"?"⬇️":"⬆️"}</span></td><td style={{...S.td,color:C.mu,fontSize:10}}>{tx.date}</td><td style={{...S.td,color:C.G,fontWeight:600}}>{tx.amt?.toFixed(2)}</td><td style={{...S.td,fontSize:10}}>{tx.net}</td><td style={S.td}><span style={{fontSize:10,fontWeight:600,color:tx.status==="done"?C.G:tx.status==="failed"?C.R:C.O}}>{tx.status==="done"?t("statusDone"):tx.status==="failed"?t("statusFailed"):t("statusPending")}</span></td></tr>))}</tbody></table></div>)}
-          </div>)}
+          <div style={{display:"flex",gap:3,marginBottom:12,background:C.bg2,borderRadius:9,padding:3}}>{["deposit","withdraw","history"].map(tp=>(<button key={tp} style={{flex:1,padding:"6px 0",border:"none",borderRadius:6,cursor:"pointer",fontWeight:600,fontSize:11,background:wTab===tp?"linear-gradient(135deg,#00C896,#0088cc)":"transparent",color:wTab===tp?"#fff":C.mu}} onClick={()=>{setWTab(tp);setDepMsg("");setWdMsg("");}}>{tp==="deposit"?"⬇️ "+t("deposit"):tp==="withdraw"?"⬆️ "+t("withdraw"):"📋 "+t("depHistory")}</button>))}</div>
+          {wTab==="deposit"&&(<div style={S.card}><div style={S.ct}>{t("depTitle")}</div>{!cmKey&&<div style={{background:"#ff9f4a10",border:"1px solid #ff9f4a30",borderRadius:7,padding:9,fontSize:11,color:C.O,marginBottom:10}}>⚠️ Cryptomus ayarlı değil.</div>}<div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("depAmt")}</div><input style={S.inp} type="number" min="1" placeholder="10.00" value={depAmt} onChange={e=>{setDepAmt(e.target.value);setDepMsg("");}}/></div><div style={{...S.row,gap:8,marginBottom:8}}><div style={{flex:1}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("depCoin")}</div><select style={{...S.inp,cursor:"pointer"}} value={depCoin} onChange={e=>setDepCoin(e.target.value)}>{["USDT","USDC","BTC","ETH","BNB","TRX","LTC","DOGE","XRP","SOL"].map(c=><option key={c}>{c}</option>)}</select></div><div style={{flex:1}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("depNetwork")}</div><select style={{...S.inp,cursor:"pointer"}} value={depNet} onChange={e=>setDepNet(e.target.value)}>{["TRON","ETH","BSC","POLYGON","SOL","BTC","LTC","XRP","DOGE"].map(n=><option key={n}>{n}</option>)}</select></div></div><div style={{...S.note,fontSize:11,marginBottom:10}}>⚠️ {t("networkNote")}</div><button style={{...S.btn("p"),width:"100%"}} onClick={doDeposit}>{t("depBtn")}</button>{depMsg&&<div style={S.msg(depMsg.startsWith("✅"))}>{depMsg}</div>}</div>)}
+          {wTab==="withdraw"&&(<div style={S.card}><div style={S.ct}>{t("wdTitle")}</div><div style={{background:C.bg,borderRadius:7,padding:10,marginBottom:10,fontSize:12}}><span style={{color:C.mu}}>USDT: </span><span style={{color:C.G,fontWeight:700}}>{(cur.usdt||0).toFixed(2)}</span></div><div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("wdAmt")}</div><input style={S.inp} type="number" min="10" placeholder="10.00" value={wdAmt} onChange={e=>{setWdAmt(e.target.value);setWdMsg("");}}/></div><div style={{marginBottom:8}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("wdNet")}</div><select style={{...S.inp,cursor:"pointer"}} value={wdNet} onChange={e=>setWdNet(e.target.value)}>{["TRON","ETH","BSC","POLYGON","SOL","BTC","LTC","XRP","DOGE"].map(n=><option key={n}>{n}</option>)}</select></div><div style={{marginBottom:10}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>{t("wdAddr")}</div><input style={S.inp} placeholder="T... / 0x..." value={wdAddr} onChange={e=>{setWdAddr(e.target.value);setWdMsg("");}}/></div><button style={{...S.btn("s"),width:"100%"}} onClick={doWithdraw}>{t("wdBtn")}</button>{wdMsg&&<div style={S.msg(wdMsg.startsWith("✅")||wdMsg.startsWith("⏳"))}>{wdMsg}</div>}</div>)}
+          {wTab==="history"&&(<div style={S.card}><div style={S.ct}>{t("depHistory")}</div>{myWtxs.length===0?<div style={{textAlign:"center",color:C.mu,padding:"24px 0"}}>{t("noWalletTx")}</div>:(<div style={{overflowX:"auto"}}><table style={S.tbl}><thead><tr>{["Type","Date","USDT","Net","Status"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>{myWtxs.map((tx,i)=>(<tr key={i}><td style={S.td}><span style={{...S.tag(tx.type==="deposit"?"buy":"sell"),fontSize:10}}>{tx.type==="deposit"?"⬇️":"⬆️"}</span></td><td style={{...S.td,color:C.mu,fontSize:10}}>{tx.date}</td><td style={{...S.td,color:C.G,fontWeight:600}}>{tx.amt?.toFixed(2)}</td><td style={{...S.td,fontSize:10}}>{tx.net}</td><td style={S.td}><span style={{fontSize:10,fontWeight:600,color:tx.status==="done"?C.G:tx.status==="failed"?C.R:C.O}}>{tx.status==="done"?t("statusDone"):tx.status==="failed"?t("statusFailed"):t("statusPending")}</span></td></tr>))}</tbody></table></div>)}</div>)}
         </div>)}
 
         {/* ADMIN */}
         {page==="admin"&&isAdmin&&(<>
-          <div style={{display:"flex",gap:3,marginBottom:12,flexWrap:"wrap"}}>
-            {["price","spread","content","users","cryptomus","wallets"].map(tp=>(<button key={tp} style={S.at(adminTab===tp)} onClick={()=>setAdminTab(tp)}>{tp==="price"?"📈":tp==="spread"?"💱":tp==="content"?"✏️":tp==="users"?"👥":tp==="cryptomus"?"🔑":"💳"} {tp}</button>))}
-          </div>
+          <div style={{display:"flex",gap:3,marginBottom:12,flexWrap:"wrap"}}>{["price","spread","content","users","cryptomus","wallets"].map(tp=>(<button key={tp} style={S.at(adminTab===tp)} onClick={()=>setAdminTab(tp)}>{tp==="price"?"📈":tp==="spread"?"💱":tp==="content"?"✏️":tp==="users"?"👥":tp==="cryptomus"?"🔑":"💳"} {tp}</button>))}</div>
 
-          {adminTab==="price"&&(<>
-            <div style={S.card}>
-              <div style={S.ct}>{t("adminPrice")}</div>
-              <div style={S.row}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,marginBottom:6,color:C.mu}}>{t("curBuy")} <span style={{color:C.G,fontWeight:700}}>${buyP.toFixed(4)}</span></div>
-                  <div style={{fontSize:11,color:C.mu,marginBottom:4}}>{t("newBuyLbl")}</div>
-                  <input style={{...S.inp,marginBottom:8}} type="number" step="0.0001" placeholder={(buyP*1.005).toFixed(4)} value={newP} onChange={e=>setNewP(e.target.value)}/>
-                  {newP&&parseFloat(newP)>0&&(<div style={{background:C.bg,borderRadius:7,padding:9,fontSize:12,marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{color:C.mu}}>Buy:</span><span style={{color:C.G,fontWeight:700}}>${parseFloat(newP).toFixed(4)}</span></div><div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.mu}}>Sell:</span><span style={{color:C.O,fontWeight:700}}>${(parseFloat(newP)*(1-spread/100)).toFixed(4)}</span></div></div>)}
-                  <button style={{...S.btn("p"),width:"100%"}} onClick={doUpdatePrice}>{t("updateBtn")}</button>
-                  {prMsg&&<div style={S.msg(prMsg.startsWith("✅"))}>{prMsg}</div>}
-                </div>
-                <div style={{flex:1}}><div style={S.note}>{"📈 Price Guide\n\nEnter higher buy price.\nSell = buy × (1 - spread%)\nAll users see change instantly.\n\nTip: +0.3–1.5% daily."}</div></div>
-              </div>
-            </div>
-            <div style={S.card}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><div style={S.ct}>{t("phTitle")}</div><span style={{fontSize:10,color:C.mu}}>Satıra tıkla → düzenle</span></div>
-              <Chart history={prices}/>
-              {phMsg&&<div style={{...S.msg(phMsg.startsWith("✅")),marginTop:8}}>{phMsg}</div>}
-              <div style={{overflowX:"auto",marginTop:11}}><table style={S.tbl}><thead><tr>{["Date","Buy","Sell",t("dailyChg"),""].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>
-                {[...prices].reverse().map((p,ri)=>{
-                  const ri2=prices.length-1-ri;
-                  const pp=prices[ri2-1];
-                  const cv=pp?((parseFloat(p.buy)-parseFloat(pp.buy))/parseFloat(pp.buy)*100).toFixed(2):"—";
-                  const ie=editP?.idx===ri2;
-                  return(<tr key={ri} style={{cursor:"pointer"}} onClick={()=>!ie&&setEditP({idx:ri2,date:p.date,buy:String(p.buy)})}>
-                    <td style={S.td}>{ie?<input style={{...S.inp,padding:"2px 6px",fontSize:11}} value={editP.date} onChange={e=>setEditP(v=>({...v,date:e.target.value}))}/>:p.date}</td>
-                    <td style={{...S.td,color:C.G}}>{ie?<input style={{...S.inp,padding:"2px 6px",fontSize:11}} type="number" step="0.0001" value={editP.buy} onChange={e=>setEditP(v=>({...v,buy:e.target.value}))}/>:`$${parseFloat(p.buy).toFixed(4)}`}</td>
-                    <td style={{...S.td,color:C.O}}>${(parseFloat(p.buy)*(1-spread/100)).toFixed(4)}</td>
-                    <td style={S.td}>{cv!=="—"?<span style={{color:parseFloat(cv)>=0?C.G:C.R}}>{parseFloat(cv)>=0?"+":""}{cv}%</span>:"—"}</td>
-                    <td style={S.td}>{ie?(<div style={{display:"flex",gap:3}}><button style={{...S.btn("p"),padding:"2px 7px",fontSize:10}} onClick={e=>{e.stopPropagation();saveEditedPrice();}}>✅</button><button style={{...S.btn("g"),padding:"2px 7px",fontSize:10}} onClick={e=>{e.stopPropagation();setEditP(null);}}>✕</button><button style={{...S.btn("s"),padding:"2px 7px",fontSize:10}} onClick={e=>{e.stopPropagation();delPrice(ri2);}}>🗑</button></div>):<span style={{fontSize:10,color:C.mu}}>✏️</span>}</td>
-                  </tr>);
-                })}
-              </tbody></table></div>
-            </div>
-          </>)}
+          {adminTab==="price"&&(<><div style={S.card}><div style={S.ct}>{t("adminPrice")}</div><div style={S.row}><div style={{flex:1}}><div style={{fontSize:12,marginBottom:6,color:C.mu}}>{t("curBuy")} <span style={{color:C.G,fontWeight:700}}>${buyP.toFixed(4)}</span></div><div style={{fontSize:11,color:C.mu,marginBottom:4}}>{t("newBuyLbl")}</div><input style={{...S.inp,marginBottom:8}} type="number" step="0.0001" placeholder={(buyP*1.005).toFixed(4)} value={newP} onChange={e=>setNewP(e.target.value)}/>{newP&&parseFloat(newP)>0&&(<div style={{background:C.bg,borderRadius:7,padding:9,fontSize:12,marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{color:C.mu}}>Buy:</span><span style={{color:C.G,fontWeight:700}}>${parseFloat(newP).toFixed(4)}</span></div><div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.mu}}>Sell:</span><span style={{color:C.O,fontWeight:700}}>${(parseFloat(newP)*(1-spread/100)).toFixed(4)}</span></div></div>)}<button style={{...S.btn("p"),width:"100%"}} onClick={doUpdatePrice}>{t("updateBtn")}</button>{prMsg&&<div style={S.msg(prMsg.startsWith("✅"))}>{prMsg}</div>}</div><div style={{flex:1}}><div style={S.note}>{"📈 Fiyat Rehberi\n\nYeni alış fiyatı girin.\nSatış = alış × (1 - spread%)\nTüm kullanıcılar anlık görür.\n\nÖneri: Günlük +0.3–1.5%"}</div></div></div></div>
+          <div style={S.card}><div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><div style={S.ct}>{t("phTitle")}</div><span style={{fontSize:10,color:C.mu}}>Satıra tıkla → düzenle</span></div><Chart history={prices}/>{phMsg&&<div style={{...S.msg(phMsg.startsWith("✅")),marginTop:8}}>{phMsg}</div>}<div style={{overflowX:"auto",marginTop:11}}><table style={S.tbl}><thead><tr>{["Date","Buy","Sell",t("dailyChg"),""].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>{[...prices].reverse().map((p,ri)=>{const ri2=prices.length-1-ri;const pp=prices[ri2-1];const cv=pp?((parseFloat(p.buy)-parseFloat(pp.buy))/parseFloat(pp.buy)*100).toFixed(2):"—";const ie=editP?.idx===ri2;return(<tr key={ri} style={{cursor:"pointer"}} onClick={()=>!ie&&setEditP({idx:ri2,date:p.date,buy:String(p.buy)})}><td style={S.td}>{ie?<input style={{...S.inp,padding:"2px 6px",fontSize:11}} value={editP.date} onChange={e=>setEditP(v=>({...v,date:e.target.value}))}/>:p.date}</td><td style={{...S.td,color:C.G}}>{ie?<input style={{...S.inp,padding:"2px 6px",fontSize:11}} type="number" step="0.0001" value={editP.buy} onChange={e=>setEditP(v=>({...v,buy:e.target.value}))}/>:`$${parseFloat(p.buy).toFixed(4)}`}</td><td style={{...S.td,color:C.O}}>${(parseFloat(p.buy)*(1-spread/100)).toFixed(4)}</td><td style={S.td}>{cv!=="—"?<span style={{color:parseFloat(cv)>=0?C.G:C.R}}>{parseFloat(cv)>=0?"+":""}{cv}%</span>:"—"}</td><td style={S.td}>{ie?(<div style={{display:"flex",gap:3}}><button style={{...S.btn("p"),padding:"2px 7px",fontSize:10}} onClick={e=>{e.stopPropagation();saveEditedPrice();}}>✅</button><button style={{...S.btn("g"),padding:"2px 7px",fontSize:10}} onClick={e=>{e.stopPropagation();setEditP(null);}}>✕</button><button style={{...S.btn("s"),padding:"2px 7px",fontSize:10}} onClick={e=>{e.stopPropagation();delPrice(ri2);}}>🗑</button></div>):<span style={{fontSize:10,color:C.mu}}>✏️</span>}</td></tr>);})}</tbody></table></div></div></>)}
 
-          {adminTab==="spread"&&(<div style={S.card}>
-            <div style={S.ct}>💱 {t("spreadLbl")}</div>
-            <div style={{fontSize:12,color:C.mu,marginBottom:12}}>Current: <span style={{color:C.G,fontWeight:700}}>{spread}%</span> — Buy: <span style={{color:C.G}}>${buyP.toFixed(4)}</span> / Sell: <span style={{color:C.O}}>${sellP.toFixed(4)}</span></div>
-            <div style={{marginBottom:10}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>New % (0–50)</div><input style={{...S.inp,maxWidth:160}} type="number" step="0.1" min="0" max="50" placeholder="2" value={spreadIn} onChange={e=>{setSpreadIn(e.target.value);setSpreadMsg("");}}/></div>
-            <button style={S.btn("p")} onClick={doSaveSpread}>{t("spreadSave")}</button>
-            {spreadMsg&&<div style={S.msg(spreadMsg.startsWith("✅"))}>{spreadMsg}</div>}
-          </div>)}
+          {adminTab==="spread"&&(<div style={S.card}><div style={S.ct}>💱 {t("spreadLbl")}</div><div style={{fontSize:12,color:C.mu,marginBottom:12}}>Mevcut: <span style={{color:C.G,fontWeight:700}}>{spread}%</span> — Alış: <span style={{color:C.G}}>${buyP.toFixed(4)}</span> / Satış: <span style={{color:C.O}}>${sellP.toFixed(4)}</span></div><div style={{marginBottom:10}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>Yeni % (0–50)</div><input style={{...S.inp,maxWidth:160}} type="number" step="0.1" min="0" max="50" placeholder="2" value={spreadIn} onChange={e=>{setSpreadIn(e.target.value);setSpreadMsg("");}}/></div><button style={S.btn("p")} onClick={doSaveSpread}>{t("spreadSave")}</button>{spreadMsg&&<div style={S.msg(spreadMsg.startsWith("✅"))}>{spreadMsg}</div>}</div>)}
 
-          {adminTab==="content"&&(<div style={S.card}>
-            <div style={S.ct}>{t("cntTitle")}</div>
-            {!editCards?(<>
-              <div style={{...S.row,gap:8,marginBottom:11}}>{rc.map((c,i)=>(<div key={i} style={{flex:1,minWidth:120,background:C.bg,borderRadius:9,padding:11}}><div style={{fontSize:19,marginBottom:4}}>{c.icon}</div><div style={{fontWeight:600,fontSize:12,marginBottom:3}}>{c.title}</div><div style={{fontSize:11,color:C.mu}}>{c.desc}</div></div>))}</div>
-              <button style={S.btn("p")} onClick={()=>setEditCards(rc.map(c=>({...c})))}>✏️ Edit</button>
-              {cntMsg&&<div style={S.msg(true)}>{cntMsg}</div>}
-            </>):(<>
-              {editCards.map((c,i)=>(<div key={i} style={{background:C.bg,borderRadius:9,padding:11,marginBottom:8}}><div style={{...S.row,gap:6,alignItems:"center",marginBottom:6}}><input style={{...S.inp,width:50,flexShrink:0}} value={c.icon} onChange={e=>{const n=[...editCards];n[i]={...n[i],icon:e.target.value};setEditCards(n);}}/><input style={{...S.inp,flex:1}} value={c.title} onChange={e=>{const n=[...editCards];n[i]={...n[i],title:e.target.value};setEditCards(n);}}/></div><textarea style={{...S.inp,resize:"vertical",minHeight:50}} value={c.desc} onChange={e=>{const n=[...editCards];n[i]={...n[i],desc:e.target.value};setEditCards(n);}}/></div>))}
-              <div style={{display:"flex",gap:6}}><button style={S.btn("p")} onClick={saveCards}>{t("saveBtn")}</button><button style={S.btn("g")} onClick={()=>setEditCards(null)}>{t("cancelBtn")}</button></div>
-            </>)}
-          </div>)}
+          {adminTab==="content"&&(<div style={S.card}><div style={S.ct}>{t("cntTitle")}</div>{!editCards?(<><div style={{...S.row,gap:8,marginBottom:11}}>{cards.map((c,i)=>(<div key={i} style={{flex:1,minWidth:120,background:C.bg,borderRadius:9,padding:11}}><div style={{fontSize:19,marginBottom:4}}>{c.icon}</div><div style={{fontWeight:600,fontSize:12,marginBottom:3}}>{c.title}</div><div style={{fontSize:11,color:C.mu}}>{c.desc}</div></div>))}</div><button style={S.btn("p")} onClick={()=>setEditCards(cards.map(c=>({...c})))}>✏️ Edit</button>{cntMsg&&<div style={S.msg(true)}>{cntMsg}</div>}</>):(<>{editCards.map((c,i)=>(<div key={i} style={{background:C.bg,borderRadius:9,padding:11,marginBottom:8}}><div style={{...S.row,gap:6,alignItems:"center",marginBottom:6}}><input style={{...S.inp,width:50,flexShrink:0}} value={c.icon} onChange={e=>{const n=[...editCards];n[i]={...n[i],icon:e.target.value};setEditCards(n);}}/><input style={{...S.inp,flex:1}} value={c.title} onChange={e=>{const n=[...editCards];n[i]={...n[i],title:e.target.value};setEditCards(n);}}/></div><textarea style={{...S.inp,resize:"vertical",minHeight:50}} value={c.desc} onChange={e=>{const n=[...editCards];n[i]={...n[i],desc:e.target.value};setEditCards(n);}}/></div>))}<div style={{display:"flex",gap:6}}><button style={S.btn("p")} onClick={saveCards}>{t("saveBtn")}</button><button style={S.btn("g")} onClick={()=>setEditCards(null)}>{t("cancelBtn")}</button></div></>)}</div>)}
 
-          {adminTab==="users"&&(<div style={S.card}>
-            <div style={S.ct}>{t("userTitle")}</div>
-            <input style={{...S.inp,marginBottom:11}} placeholder={t("searchU")} value={uSearch} onChange={e=>setUSearch(e.target.value)}/>
-            {fu.length===0?<div style={{textAlign:"center",color:C.mu,padding:"18px 0"}}>{t("noUsers")}</div>:(<div style={{overflowX:"auto"}}><table style={S.tbl}><thead><tr>{["User","Email","OPAY","USDT","Actions"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>
-              {fu.map(([uid,u])=>(<tr key={uid}><td style={S.td}><div style={{fontWeight:600,fontSize:12}}>{u.name}</div><div style={{fontSize:10,color:C.mu}}>@{u.username}{u.isAdmin?" 🔑":""}</div></td><td style={{...S.td,color:C.mu,fontSize:10}}>{u.email}</td><td style={{...S.td,color:C.G,fontSize:12}}>{(u.opay||0).toFixed(2)}</td><td style={{...S.td,fontSize:12}}>{(u.usdt||0).toFixed(2)}</td><td style={S.td}><div style={{display:"flex",gap:2,flexWrap:"wrap"}}>{[["addO",t("addO"),"p"],["remO",t("remO"),"s"],["addU",t("addU"),"p"],["remU",t("remU"),"s"]].map(([tp,lb,v])=>(<button key={tp} style={{...S.btn(v),padding:"2px 6px",fontSize:10}} onClick={()=>openAdj(uid,tp)}>{lb}</button>))}</div></td></tr>))}
-            </tbody></table></div>)}
-            {adjUser&&(<div style={{position:"fixed",inset:0,background:"#000b",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}><div style={{...S.card,width:280,margin:0}}><div style={{fontWeight:600,marginBottom:10,fontSize:12}}>{t("adjFor")} @{allUsers[adjUser]?.username}</div><input style={{...S.inp,marginBottom:8}} type="number" min="0" placeholder="0.00" value={adjAmt} onChange={e=>setAdjAmt(e.target.value)}/>{adjMsg&&<div style={S.msg(adjMsg.startsWith("✅"))}>{adjMsg}</div>}<div style={{display:"flex",gap:6,marginTop:10}}><button style={{...S.btn("p"),flex:1}} onClick={doAdj}>{t("applyBtn")}</button><button style={{...S.btn("g"),flex:1}} onClick={()=>{setAdjUser(null);setAdjMsg("");}}>{t("cancelBtn")}</button></div></div></div>)}
-          </div>)}
+          {adminTab==="users"&&(<div style={S.card}><div style={S.ct}>{t("userTitle")}</div><input style={{...S.inp,marginBottom:11}} placeholder={t("searchU")} value={uSearch} onChange={e=>setUSearch(e.target.value)}/>{fu.length===0?<div style={{textAlign:"center",color:C.mu,padding:"18px 0"}}>{t("noUsers")}</div>:(<div style={{overflowX:"auto"}}><table style={S.tbl}><thead><tr>{["User","Email","OPAY","USDT","Actions"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>{fu.map(([k,u])=>(<tr key={k}><td style={S.td}><div style={{fontWeight:600,fontSize:12}}>{u.name}</div><div style={{fontSize:10,color:C.mu}}>@{k}{u.isAdmin?" 🔑":""}</div></td><td style={{...S.td,color:C.mu,fontSize:10}}>{u.email}</td><td style={{...S.td,color:C.G,fontSize:12}}>{(u.opay||0).toFixed(2)}</td><td style={{...S.td,fontSize:12}}>{(u.usdt||0).toFixed(2)}</td><td style={S.td}><div style={{display:"flex",gap:2,flexWrap:"wrap"}}>{[["addO",t("addO"),"p"],["remO",t("remO"),"s"],["addU",t("addU"),"p"],["remU",t("remU"),"s"]].map(([tp,lb,v])=>(<button key={tp} style={{...S.btn(v),padding:"2px 6px",fontSize:10}} onClick={()=>openAdj(k,tp)}>{lb}</button>))}</div></td></tr>))}</tbody></table></div>)}{adjUser&&(<div style={{position:"fixed",inset:0,background:"#000b",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}><div style={{...S.card,width:280,margin:0}}><div style={{fontWeight:600,marginBottom:10,fontSize:12}}>{t("adjFor")} @{adjUser}</div><input style={{...S.inp,marginBottom:8}} type="number" min="0" placeholder="0.00" value={adjAmt} onChange={e=>setAdjAmt(e.target.value)}/>{adjMsg&&<div style={S.msg(adjMsg.startsWith("✅"))}>{adjMsg}</div>}<div style={{display:"flex",gap:6,marginTop:10}}><button style={{...S.btn("p"),flex:1}} onClick={doAdj}>{t("applyBtn")}</button><button style={{...S.btn("g"),flex:1}} onClick={()=>{setAdjUser(null);setAdjMsg("");}}>{t("cancelBtn")}</button></div></div></div>)}</div>)}
 
-          {adminTab==="cryptomus"&&(<div style={S.card}>
-            <div style={S.ct}>{t("cmSetup")}</div>
-            <div style={{...S.note,marginBottom:14,fontSize:11}}>{"1. cryptomus.com → Merchants → Create\n2. Merchant UUID → API Key\n3. Payment API Key → Secret\n4. Save"}</div>
-            <div style={{marginBottom:10}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>Merchant UUID</div><input style={S.inp} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={cmKey} onChange={e=>{setCmKey(e.target.value);setCmSaved(false);}}/></div>
-            <div style={{marginBottom:12}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>Payment API Key</div><input style={S.inp} type="password" placeholder="••••••••" value={cmSec} onChange={e=>{setCmSec(e.target.value);setCmSaved(false);}}/></div>
-            <button style={{...S.btn("p"),width:"100%"}} onClick={saveCM}>💾 Kaydet</button>
-            {cmSaved&&<div style={S.msg(true)}>{t("cmSavedMsg")}</div>}
-          </div>)}
+          {adminTab==="cryptomus"&&(<div style={S.card}><div style={S.ct}>{t("cmSetup")}</div><div style={{...S.note,marginBottom:14,fontSize:11}}>{"1. cryptomus.com → Merchants → Create\n2. Merchant UUID → API Key\n3. Payment API Key → Secret\n4. Save"}</div><div style={{marginBottom:10}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>Merchant UUID</div><input style={S.inp} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={cmKey} onChange={e=>{setCmKey(e.target.value);setCmSaved(false);}}/></div><div style={{marginBottom:12}}><div style={{fontSize:11,color:C.mu,marginBottom:3}}>Payment API Key</div><input style={S.inp} type="password" placeholder="••••••••" value={cmSec} onChange={e=>{setCmSec(e.target.value);setCmSaved(false);}}/></div><button style={{...S.btn("p"),width:"100%"}} onClick={saveCM}>💾 Kaydet</button>{cmSaved&&<div style={S.msg(true)}>{t("cmSavedMsg")}</div>}</div>)}
 
-          {adminTab==="wallets"&&(<div style={S.card}>
-            <div style={S.ct}>💳 Tüm İstekler</div>
-            {allWTxs.length===0?<div style={{textAlign:"center",color:C.mu,padding:"20px 0"}}>{t("noWalletTx")}</div>:(<div style={{overflowX:"auto"}}><table style={S.tbl}><thead><tr>{["UID","Type","Date","USDT","Status","Action"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>
-              {allWTxs.map((tx,i)=>(<tr key={i}><td style={{...S.td,fontSize:10,color:C.mu}}>{tx.uid?.slice(0,6)}…</td><td style={S.td}><span style={{fontSize:10,fontWeight:600,color:tx.type==="deposit"?C.G:C.R}}>{tx.type==="deposit"?"⬇️":"⬆️"}</span></td><td style={{...S.td,color:C.mu,fontSize:10}}>{tx.date}</td><td style={{...S.td,color:C.G,fontWeight:600}}>{tx.amt?.toFixed(2)}</td><td style={S.td}><span style={{fontSize:10,fontWeight:600,color:tx.status==="done"?C.G:tx.status==="failed"?C.R:C.O}}>{tx.status==="done"?t("statusDone"):tx.status==="failed"?t("statusFailed"):t("statusPending")}</span></td><td style={S.td}>{tx.status==="pending"?(<div style={{display:"flex",gap:3}}><button style={{...S.btn("p"),padding:"2px 6px",fontSize:10}} onClick={()=>approveTx(tx)}>{t("approveBtn")}</button><button style={{...S.btn("s"),padding:"2px 6px",fontSize:10}} onClick={()=>rejectTx(tx)}>{t("rejectBtn")}</button></div>):<span style={{fontSize:10,color:C.mu}}>—</span>}</td></tr>))}
-            </tbody></table></div>)}
-          </div>)}
+          {adminTab==="wallets"&&(<div style={S.card}><div style={S.ct}>💳 Tüm İstekler</div>{allWtxs.length===0?<div style={{textAlign:"center",color:C.mu,padding:"20px 0"}}>{t("noWalletTx")}</div>:(<div style={{overflowX:"auto"}}><table style={S.tbl}><thead><tr>{["User","Type","Date","USDT","Status","Action"].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>{allWtxs.map((tx,i)=>(<tr key={i}><td style={{...S.td,fontSize:10,color:C.mu}}>@{tx.user}</td><td style={S.td}><span style={{fontSize:10,fontWeight:600,color:tx.type==="deposit"?C.G:C.R}}>{tx.type==="deposit"?"⬇️":"⬆️"}</span></td><td style={{...S.td,color:C.mu,fontSize:10}}>{tx.date}</td><td style={{...S.td,color:C.G,fontWeight:600}}>{tx.amt?.toFixed(2)}</td><td style={S.td}><span style={{fontSize:10,fontWeight:600,color:tx.status==="done"?C.G:tx.status==="failed"?C.R:C.O}}>{tx.status==="done"?t("statusDone"):tx.status==="failed"?t("statusFailed"):t("statusPending")}</span></td><td style={S.td}>{tx.status==="pending"?(<div style={{display:"flex",gap:3}}><button style={{...S.btn("p"),padding:"2px 6px",fontSize:10}} onClick={()=>approveTx(tx.id)}>{t("approveBtn")}</button><button style={{...S.btn("s"),padding:"2px 6px",fontSize:10}} onClick={()=>rejectTx(tx.id)}>{t("rejectBtn")}</button></div>):<span style={{fontSize:10,color:C.mu}}>—</span>}</td></tr>))}</tbody></table></div>)}</div>)}
         </>)}
 
       </div>
