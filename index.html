@@ -17,4 +17,39 @@ button{cursor:pointer}
 .btn-g{background:#172340;color:#fff;border:none;border-radius:7px;padding:9px 16px;font-weight:600}
 .msg-ok{margin-top:8px;padding:7px 10px;border-radius:7px;background:#00C89615;color:#00C896;font-size:12px}
 .msg-er{margin-top:8px;padding:7px 10px;border-radius:7px;background:#f0406015;color:#f04060;font-size:12px}
-.hdr{background:#0b152
+.hdr{background:#0b1525;border-bottom:1px solid #172340;padding:0 14px;display:flex;align-items:center;justify-content:space-between;height:52px;gap:8px;position:sticky;top:0;z-index:100}
+.nav{display:flex;gap:2px;overflow-x:auto}
+.nav button{background:transparent;color:#3a5a8a;border:none;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:400;white-space:nowrap}
+.nav button.active{background:#00C89615;color:#00C896;font-weight:600}
+.main{max-width:860px;margin:0 auto;padding:16px 9px}
+.row{display:flex;gap:9px;flex-wrap:wrap}
+.stat{flex:1;min-width:100px;background:#080f1c;border:1px solid #172340;border-radius:9px;padding:11px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:10px;font-weight:600;color:#3a5a8a;padding:4px 6px;border-bottom:1px solid #172340}
+td{padding:7px 6px;border-bottom:1px solid #0b1525;font-size:12px}
+select{background:#050c18;border:1px solid #172340;border-radius:7px;padding:8px 10px;color:#dde4f0;width:100%;outline:none}
+.logo-ico{width:28px;height:28px;background:linear-gradient(135deg,#00C896,#0066cc);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#fff;flex-shrink:0}
+.tab-btn{border:none;border-radius:6px;padding:5px 11px;font-size:11px;background:transparent;color:#3a5a8a}
+.tab-btn.active{background:#00C89620;color:#00C896;font-weight:600}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+// ── localStorage helpers ──
+const LS = {
+  get: (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+// ── Default data ──
+const DEF_PRICES = [
+  {date:"2025-01-01",buy:1.000},{date:"2025-06-01",buy:1.485},
+  {date:"2025-12-01",buy:1.997},{date:"2026-04-01",buy:2.460},{date:"2026-06-29",buy:2.850}
+];
+const DEF_CARDS = [
+  {icon:"🔒",title:"Güvenli Platform",desc:"Sadece bu site üzerinden alım satım"},
+  {icon:"📈",title:"Sürekli Artan Değer",desc:"Her gün yönetici tarafından belirlenen fiyat"},
+  {icon:"⚡",title:"Anında İşlem",desc:"USDT ↔ OPAY TOKEN kolay dönüşüm"},
