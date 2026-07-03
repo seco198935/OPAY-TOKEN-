@@ -14,6 +14,7 @@ button{cursor:pointer}
 .btn-p{background:linear-gradient(135deg,#00C896,#0088cc);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-weight:600;cursor:pointer}
 .btn-s{background:linear-gradient(135deg,#f04060,#aa1133);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-weight:600;cursor:pointer}
 .btn-g{background:#172340;color:#fff;border:none;border-radius:7px;padding:9px 16px;font-weight:600;cursor:pointer}
+.btn-p:disabled,.btn-s:disabled{opacity:0.5;cursor:not-allowed}
 .hdr{background:#0b1525;border-bottom:1px solid #172340;padding:0 14px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100}
 .nav{display:flex;gap:2px;overflow-x:auto}
 .nav button{background:transparent;color:#3a5a8a;border:none;border-radius:6px;padding:5px 9px;font-size:11px;white-space:nowrap}
@@ -26,80 +27,120 @@ table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:10px;font-weight:600;color:#3a5a8a;padding:4px 6px;border-bottom:1px solid #172340}
 td{padding:7px 6px;border-bottom:1px solid #0b1525;font-size:12px}
 select{background:#050c18;border:1px solid #172340;border-radius:7px;padding:8px 10px;color:#dde4f0;width:100%;outline:none}
+.msg-ok{color:#00C896;font-size:12px;margin-top:7px}
+.msg-er{color:#f04060;font-size:12px;margin-top:7px}
+.spin{text-align:center;padding:40px 0;color:#3a5a8a;font-size:12px}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>
-var LS = {
-  get: function(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
-  set: function(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
-};
+// ════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════
+var API_URL = "https://opay-backend-production.up.railway.app";
 
-var DEF_PRICES = [
-  {date:"2025-01-01",buy:1.000},
-  {date:"2025-06-01",buy:1.485},
-  {date:"2025-12-01",buy:1.997},
-  {date:"2026-04-01",buy:2.460},
-  {date:"2026-06-29",buy:2.850}
-];
+// ════════════════════════════════════════
+// API HELPER — all real data comes from the backend.
+// No user data, passwords or balances are ever kept in localStorage.
+// ════════════════════════════════════════
+function api(path, method, body) {
+  var m = (method || "GET").toUpperCase();
+  var opts = {
+    method: m,
+    credentials: "include",
+    headers: { "Content-Type": "application/json" }
+  };
+  // CSRF defense-in-depth: the token is only ever handed to us inside a JSON
+  // response body (never as a readable cookie), so a malicious third-party
+  // site cannot obtain it and cannot forge this header — even though the
+  // browser would still attach our auth cookie to a cross-site request.
+  if (m !== "GET" && state.csrfToken) {
+    opts.headers["X-CSRF-Token"] = state.csrfToken;
+  }
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  return fetch(API_URL + path, opts).then(function(res) {
+    return res.text().then(function(text) {
+      var data;
+      try { data = text ? JSON.parse(text) : {}; } catch (e) { data = {}; }
+      if (!res.ok) {
+        var err = new Error(data.error || "İstek başarısız (" + res.status + ")");
+        throw err;
+      }
+      return data;
+    });
+  });
+}
 
-var DEF_CARDS = [
-  {icon:"🔒",title:"Güvenli Platform",desc:"Sadece bu site üzerinden alım satım"},
-  {icon:"📈",title:"Sürekli Artan Değer",desc:"Her gün yönetici tarafından belirlenen fiyat"},
-  {icon:"⚡",title:"Anında İşlem",desc:"USDT ile OPAY TOKEN kolay dönüşüm"},
-  {icon:"💱",title:"Sabit Spread",desc:"Şeffaf ve sabit alım satım farkı"}
-];
+function h(str) {
+  return String(str == null ? "" : str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
 
-var DEF_USERS = {
-  admin: {pw:"admin123",name:"Admin",email:"admin@opay.com",usdt:10000,opay:5000,isAdmin:true}
-};
-
+// ════════════════════════════════════════
+// STATE — only holds data fetched from backend for the current session.
+// Nothing here is persisted client-side.
+// ════════════════════════════════════════
 var state = {
-  session: LS.get("op_session", null),
-  users: LS.get("op_users", DEF_USERS),
-  prices: LS.get("op_prices", DEF_PRICES),
-  spread: LS.get("op_spread", 2),
-  cards: LS.get("op_cards", DEF_CARDS),
-  txs: LS.get("op_txs", []),
-  wtxs: LS.get("op_wtxs", []),
-  cmKey: LS.get("op_cmk", ""),
-  cmSec: LS.get("op_cms", ""),
+  booting: true,       // true while checking session on first load
+  cur: null,            // current user, from /api/auth/me
+  csrfToken: null,       // in-memory only, never persisted
   page: "dashboard",
   authMode: "login",
   adminTab: "price",
   wTab: "deposit",
-  exMode: "buy"
+  exMode: "buy",
+
+  priceInfo: null,       // {buyPrice, sellPrice, spread}
+  priceHistory: [],      // [{buy, date}]
+  cards: [],
+  txs: [],
+  wtxs: [],
+
+  adminUsers: [],
+  adminPrices: [],       // with ids
+  adminWtxs: [],
+
+  busy: false,           // generic "request in flight" flag for buttons
+  errAuth: ""
 };
 
-function save() {
-  LS.set("op_session", state.session);
-  LS.set("op_users", state.users);
-  LS.set("op_prices", state.prices);
-  LS.set("op_spread", state.spread);
-  LS.set("op_cards", state.cards);
-  LS.set("op_txs", state.txs);
-  LS.set("op_wtxs", state.wtxs);
+// ════════════════════════════════════════
+// BOOTSTRAP
+// ════════════════════════════════════════
+function boot() {
+  api("/api/auth/me").then(function(u) {
+    state.cur = u;
+    state.csrfToken = u.csrfToken;
+    state.booting = false;
+    render();
+    loadDashboardData();
+  }).catch(function() {
+    state.cur = null;
+    state.csrfToken = null;
+    state.booting = false;
+    render();
+  });
 }
 
-function h(str) {
-  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function loadDashboardData() {
+  api("/api/price").then(function(p) { state.priceInfo = p; render(); }).catch(function(){});
+  api("/api/prices").then(function(p) { state.priceHistory = p; render(); }).catch(function(){});
+  api("/api/cards").then(function(c) { state.cards = c; render(); }).catch(function(){});
 }
 
-function getBuyP() {
-  var last = state.prices[state.prices.length - 1] || {buy:2.85};
-  return parseFloat(last.buy) || 2.85;
-}
-function getSellP() {
-  return parseFloat((getBuyP() * (1 - state.spread / 100)).toFixed(4));
+function refreshMe() {
+  return api("/api/auth/me").then(function(u) { state.cur = u; state.csrfToken = u.csrfToken; });
 }
 
+// ════════════════════════════════════════
+// CHART
+// ════════════════════════════════════════
 function makeChart() {
-  var history = state.prices;
-  if (!history || history.length < 2) return "";
+  var history = state.priceHistory;
+  if (!history || history.length < 2) return '<div style="text-align:center;color:#3a5a8a;font-size:12px;padding:20px 0">Grafik için yeterli veri yok.</div>';
   var W=520, H=150, PL=42, PT=8, PR=8, PB=24;
   var pw = W-PL-PR, ph = H-PT-PB;
-  var ps = history.map(function(h) { return parseFloat(h.buy); });
+  var ps = history.map(function(p) { return parseFloat(p.buy); });
   var mn = Math.min.apply(null,ps)*0.97;
   var mx = Math.max.apply(null,ps)*1.02;
   var xi = function(i) { return PL + i*(pw/(history.length-1)); };
@@ -114,7 +155,7 @@ function makeChart() {
   }).join("");
   var labIdx = [0, Math.floor(history.length/2), history.length-1];
   var labsSvg = labIdx.map(function(i) {
-    return '<text x="'+xi(i).toFixed(1)+'" y="'+(H-2)+'" text-anchor="middle" fill="#445" font-size="9">'+history[i].date.slice(0,7)+'</text>';
+    return '<text x="'+xi(i).toFixed(1)+'" y="'+(H-2)+'" text-anchor="middle" fill="#445" font-size="9">'+h(history[i].date.slice(0,7))+'</text>';
   }).join("");
   return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">'+
     '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'+
@@ -127,39 +168,28 @@ function makeChart() {
     '</svg>';
 }
 
+// ════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════
 function render() {
   var app = document.getElementById("app");
   if (!app) return;
-  var buyP = getBuyP();
-  var sellP = getSellP();
-  var cur = state.session ? state.users[state.session] : null;
-  var isAdmin = cur && cur.isAdmin;
-  var prev = state.prices.length > 1 ? parseFloat(state.prices[state.prices.length-2].buy) : buyP;
-  var chg = ((buyP - prev) / prev * 100).toFixed(2);
-  var isUp = parseFloat(chg) >= 0;
 
-  if (!state.session) {
-    app.innerHTML = '<div class="hdr"><div style="display:flex;align-items:center;gap:7px"><div class="logo-ico">OP</div><span style="font-weight:700;font-size:14px;color:#fff">OPAY TOKEN</span></div></div>'+
-    '<div style="max-width:360px;margin:40px auto 0;padding:0 10px"><div class="card" style="padding:22px">'+
-    '<div style="text-align:center;margin-bottom:18px">'+
-    '<div class="logo-ico" style="width:44px;height:44px;font-size:17px;margin:0 auto 10px">OP</div>'+
-    '<div style="font-weight:700;font-size:17px;color:#fff">'+(state.authMode==="login"?"Hoş Geldiniz":"Hesap Oluşturun")+'</div>'+
-    '<div style="color:#3a5a8a;font-size:11px;margin-top:2px">OPAY TOKEN Platformu</div></div>'+
-    (state.authMode==="register"?
-      '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Ad Soyad</div><input class="inp" id="aName" placeholder="Ad Soyad"/></div>'+
-      '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Kullanıcı Adı</div><input class="inp" id="aUser" placeholder="kullanici_adi"/></div>'
-    : "") +
-    '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">E-posta veya Kullanıcı Adı</div><input class="inp" id="aEmail" placeholder="email@example.com"/></div>'+
-    '<div style="margin-bottom:'+(state.authMode==="register"?"8":"13")+'px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Şifre</div><input class="inp" id="aPw" type="password" placeholder="........"/></div>'+
-    (state.authMode==="register"?'<div style="margin-bottom:13px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Şifre Tekrar</div><input class="inp" id="aCPw" type="password" placeholder="........"/></div>':"") +
-    '<div id="authMsg"></div>'+
-    '<button class="btn-p" style="width:100%;margin-top:11px" onclick="doAuth()">'+(state.authMode==="login"?"Giriş Yap":"Hesap Oluştur")+'</button>'+
-    '<div style="margin-top:11px;font-size:12px;color:#3a5a8a;text-align:center">'+
-    (state.authMode==="login"?"Hesabınız yok mu?":"Hesabınız var mı?")+
-    ' <span style="color:#00C896;cursor:pointer;font-weight:600" onclick="toggleAuth()">'+(state.authMode==="login"?"Üye olun":"Giriş yapın")+'</span></div>'+
-    '</div></div>';
+  if (state.booting) {
+    app.innerHTML = '<div class="spin">Yükleniyor...</div>';
     return;
   }
+
+  if (!state.cur) {
+    renderAuth(app);
+    return;
+  }
+
+  var buyP = state.priceInfo ? state.priceInfo.buyPrice : 0;
+  var sellP = state.priceInfo ? state.priceInfo.sellPrice : 0;
+  var spread = state.priceInfo ? state.priceInfo.spread : 0;
+  var cur = state.cur;
+  var isAdmin = cur.isAdmin;
 
   var navItems = [
     {id:"dashboard",label:"Panel"},
@@ -174,299 +204,410 @@ function render() {
   }).join("");
 
   var pageHtml = "";
-
-  if (state.page === "dashboard") {
-    var opayVal = ((cur.opay||0)*sellP).toFixed(2);
-    pageHtml =
-    '<div class="row">'+
-    '<div class="stat"><div style="font-size:10px;color:#3a5a8a;font-weight:600;margin-bottom:3px">Alış Fiyatı</div><div style="font-size:19px;font-weight:700;color:#00C896">$'+buyP.toFixed(4)+'</div><div style="font-size:10px;color:'+(isUp?"#00C896":"#f04060")+'">'+(isUp?"▲":"▼")+Math.abs(chg)+'%</div></div>'+
-    '<div class="stat"><div style="font-size:10px;color:#3a5a8a;font-weight:600;margin-bottom:3px">Satış Fiyatı</div><div style="font-size:19px;font-weight:700;color:#ff9f4a">$'+sellP.toFixed(4)+'</div><div style="font-size:10px;color:#3a5a8a">Spread: '+state.spread+'%</div></div>'+
-    '<div class="stat"><div style="font-size:10px;color:#3a5a8a;font-weight:600;margin-bottom:3px">OPAY Bakiye</div><div style="font-size:19px;font-weight:700">'+(cur.opay||0).toFixed(2)+'</div><div style="font-size:10px;color:#00C896">$'+opayVal+'</div></div>'+
-    '<div class="stat"><div style="font-size:10px;color:#3a5a8a;font-weight:600;margin-bottom:3px">USDT Bakiye</div><div style="font-size:19px;font-weight:700">'+(cur.usdt||0).toFixed(2)+'</div></div>'+
-    '</div>'+
-    '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Fiyat Grafiği</div>'+makeChart()+'</div>'+
-    '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Platform Bilgisi</div>'+
-    '<div class="row" style="gap:8px">'+
-    state.cards.map(function(c) {
-      return '<div style="flex:1;min-width:120px;background:#060d1a;border-radius:9px;padding:11px"><div style="font-size:19px;margin-bottom:4px">'+c.icon+'</div><div style="font-weight:600;font-size:12px;margin-bottom:3px">'+h(c.title)+'</div><div style="font-size:11px;color:#3a5a8a">'+h(c.desc)+'</div></div>';
-    }).join("")+
-    '</div></div>';
-  }
-
-  else if (state.page === "exchange") {
-    pageHtml = '<div style="max-width:440px;margin:0 auto"><div class="card">'+
-    '<div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Exchange</div>'+
-    '<div class="row" style="gap:8px;margin-bottom:12px">'+
-    '<div style="flex:1;background:#060d1a;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#3a5a8a;margin-bottom:2px">Alış</div><div style="font-weight:700;font-size:16px;color:#00C896">$'+buyP.toFixed(4)+'</div></div>'+
-    '<div style="flex:1;background:#060d1a;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#3a5a8a;margin-bottom:2px">Satış</div><div style="font-weight:700;font-size:16px;color:#ff9f4a">$'+sellP.toFixed(4)+'</div></div>'+
-    '</div>'+
-    '<div style="background:#060d1a;border-radius:8px;padding:10px;margin-bottom:11px;font-size:12px">'+
-    '<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:#3a5a8a">OPAY:</span><span style="font-weight:600">'+(cur.opay||0).toFixed(2)+'</span></div>'+
-    '<div style="display:flex;justify-content:space-between"><span style="color:#3a5a8a">USDT:</span><span style="font-weight:600">'+(cur.usdt||0).toFixed(2)+'</span></div>'+
-    '</div>'+
-    '<div style="display:flex;gap:3px;margin-bottom:11px;background:#060d1a;border-radius:8px;padding:3px">'+
-    '<button style="flex:1;padding:7px 0;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;background:'+(state.exMode==="buy"?"linear-gradient(135deg,#00C896,#0088cc)":"transparent")+';color:'+(state.exMode==="buy"?"#fff":"#3a5a8a")+'" onclick="setExMode(\'buy\')">▲ OPAY AL</button>'+
-    '<button style="flex:1;padding:7px 0;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;background:'+(state.exMode==="sell"?"linear-gradient(135deg,#f04060,#aa1133)":"transparent")+';color:'+(state.exMode==="sell"?"#fff":"#3a5a8a")+'" onclick="setExMode(\'sell\')">▼ OPAY SAT</button>'+
-    '</div>'+
-    '<div style="margin-bottom:10px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">'+(state.exMode==="buy"?"Almak istediğiniz OPAY":"Satmak istediğiniz OPAY")+'</div>'+
-    '<input class="inp" id="exAmt" type="number" min="0" placeholder="0.00" oninput="calcEx()"/></div>'+
-    '<div id="exPreview"></div>'+
-    '<button class="'+(state.exMode==="buy"?"btn-p":"btn-s")+'" style="width:100%" onclick="doExchange()">'+(state.exMode==="buy"?"✅ OPAY SATIN AL":"💱 OPAY SAT")+'</button>'+
-    '<div id="exMsg"></div>'+
-    '</div></div>';
-  }
-
-  else if (state.page === "history") {
-    var myTxs = state.txs.filter(function(t) { return t.user === state.session; });
-    pageHtml = '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Alım Satım Geçmişi</div>';
-    if (myTxs.length === 0) {
-      pageHtml += '<div style="text-align:center;color:#3a5a8a;padding:24px 0">Henüz işlem yok.</div>';
-    } else {
-      pageHtml += '<div style="overflow-x:auto"><table><thead><tr><th>İşlem</th><th>Tarih</th><th>OPAY</th><th>USDT</th><th>Fiyat</th></tr></thead><tbody>';
-      for (var i=0; i<myTxs.length; i++) {
-        var tx = myTxs[i];
-        pageHtml += '<tr>'+
-          '<td><span style="display:inline-block;padding:2px 6px;border-radius:20px;font-size:10px;font-weight:600;background:'+(tx.type==="buy"?"#00C89615":"#f0406015")+';color:'+(tx.type==="buy"?"#00C896":"#f04060")+'">'+(tx.type==="buy"?"▲ ALIM":"▼ SATIM")+'</span></td>'+
-          '<td style="color:#3a5a8a;font-size:11px">'+h(tx.date)+'</td>'+
-          '<td>'+parseFloat(tx.opay).toFixed(2)+'</td>'+
-          '<td>'+parseFloat(tx.usdt).toFixed(4)+'</td>'+
-          '<td style="color:'+(tx.type==="buy"?"#00C896":"#ff9f4a")+'">$'+parseFloat(tx.price).toFixed(4)+'</td>'+
-          '</tr>';
-      }
-      pageHtml += '</tbody></table></div>';
-    }
-    pageHtml += '</div>';
-  }
-
-  else if (state.page === "wallet") {
-    var myWtxs = state.wtxs.filter(function(t) { return t.user === state.session; });
-    var wTabs = [
-      {id:"deposit",label:"Para Yatır"},
-      {id:"withdraw",label:"Para Çek"},
-      {id:"history",label:"Geçmiş"}
-    ];
-    pageHtml = '<div style="max-width:480px;margin:0 auto">'+
-    '<div style="display:flex;gap:3px;margin-bottom:12px;background:#0b1525;border-radius:9px;padding:3px">'+
-    wTabs.map(function(tp) {
-      return '<button style="flex:1;padding:6px 0;border:none;border-radius:6px;font-weight:600;font-size:11px;cursor:pointer;background:'+(state.wTab===tp.id?"linear-gradient(135deg,#00C896,#0088cc)":"transparent")+';color:'+(state.wTab===tp.id?"#fff":"#3a5a8a")+'" onclick="setWTab(\''+tp.id+'\')">'+h(tp.label)+'</button>';
-    }).join("")+'</div>';
-
-    if (state.wTab === "deposit") {
-      pageHtml += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">USDT Yatır</div>'+
-      (!state.cmKey?'<div style="background:#ff9f4a10;border:1px solid #ff9f4a30;border-radius:7px;padding:9px;font-size:11px;color:#ff9f4a;margin-bottom:10px">Cryptomus ayarlı değil. Admin panelinden ayarlayın.</div>':"")+
-      '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Miktar (USDT)</div><input class="inp" id="depAmt" type="number" min="1" placeholder="10.00"/></div>'+
-      '<div class="row" style="gap:8px;margin-bottom:8px">'+
-      '<div style="flex:1"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Coin</div><select id="depCoin"><option>USDT</option><option>USDC</option><option>BTC</option><option>ETH</option><option>TRX</option></select></div>'+
-      '<div style="flex:1"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Ağ</div><select id="depNet"><option>TRON</option><option>ETH</option><option>BSC</option><option>SOL</option></select></div></div>'+
-      '<button class="btn-p" style="width:100%" onclick="doDeposit()">Ödeme Oluştur</button>'+
-      '<div id="depMsg"></div></div>';
-    } else if (state.wTab === "withdraw") {
-      pageHtml += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">USDT Çek</div>'+
-      '<div style="background:#060d1a;border-radius:7px;padding:10px;margin-bottom:10px;font-size:12px"><span style="color:#3a5a8a">USDT: </span><span style="color:#00C896;font-weight:700">'+(cur.usdt||0).toFixed(2)+'</span></div>'+
-      '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Miktar (min 10 USDT)</div><input class="inp" id="wdAmt" type="number" min="10" placeholder="10.00"/></div>'+
-      '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Ağ</div><select id="wdNet"><option>TRON</option><option>ETH</option><option>BSC</option></select></div>'+
-      '<div style="margin-bottom:10px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Cüzdan Adresi</div><input class="inp" id="wdAddr" placeholder="T... / 0x..."/></div>'+
-      '<button class="btn-s" style="width:100%" onclick="doWithdraw()">Çekim Talebi Gönder</button>'+
-      '<div id="wdMsg"></div></div>';
-    } else {
-      pageHtml += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Geçmiş</div>';
-      if (myWtxs.length === 0) {
-        pageHtml += '<div style="text-align:center;color:#3a5a8a;padding:24px 0">Geçmiş yok.</div>';
-      } else {
-        pageHtml += '<div style="overflow-x:auto"><table><thead><tr><th>Tür</th><th>Tarih</th><th>USDT</th><th>Ağ</th><th>Durum</th></tr></thead><tbody>';
-        for (var j=0; j<myWtxs.length; j++) {
-          var wtx = myWtxs[j];
-          var stColor = wtx.status==="done"?"#00C896":wtx.status==="failed"?"#f04060":"#ff9f4a";
-          var stLabel = wtx.status==="done"?"Tamamlandı":wtx.status==="failed"?"Başarısız":"Bekliyor";
-          pageHtml += '<tr>'+
-            '<td style="color:'+(wtx.type==="deposit"?"#00C896":"#f04060")+';font-size:12px">'+(wtx.type==="deposit"?"⬇️":"⬆️")+'</td>'+
-            '<td style="color:#3a5a8a;font-size:10px">'+h(wtx.date)+'</td>'+
-            '<td style="color:#00C896;font-weight:600">'+parseFloat(wtx.amt).toFixed(2)+'</td>'+
-            '<td style="font-size:10px">'+h(wtx.net||"")+'</td>'+
-            '<td><span style="font-size:10px;font-weight:600;color:'+stColor+'">'+stLabel+'</span></td>'+
-            '</tr>';
-        }
-        pageHtml += '</tbody></table></div>';
-      }
-      pageHtml += '</div>';
-    }
-    pageHtml += '</div>';
-  }
-
-  else if (state.page === "admin" && isAdmin) {
-    var adminTabs = ["price","spread","content","users","cryptomus","wallets"];
-    pageHtml = '<div style="display:flex;gap:3px;margin-bottom:12px;flex-wrap:wrap">'+
-    adminTabs.map(function(tp) {
-      var labels = {price:"📈 Fiyat",spread:"💱 Spread",content:"✏️ Kartlar",users:"👥 Kullanıcılar",cryptomus:"🔑 Cryptomus",wallets:"💳 İstekler"};
-      return '<button style="border:none;border-radius:6px;padding:5px 11px;font-size:11px;cursor:pointer;background:'+(state.adminTab===tp?"#00C89620":"transparent")+';color:'+(state.adminTab===tp?"#00C896":"#3a5a8a")+'" onclick="setAdminTab(\''+tp+'\')">'+labels[tp]+'</button>';
-    }).join("")+'</div>';
-
-    if (state.adminTab === "price") {
-      pageHtml += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Fiyat Yönetimi</div>'+
-      '<div style="font-size:12px;margin-bottom:6px;color:#3a5a8a">Mevcut alış: <span style="color:#00C896;font-weight:700">$'+buyP.toFixed(4)+'</span></div>'+
-      '<div style="font-size:11px;color:#3a5a8a;margin-bottom:4px">Yeni alış fiyatı (USDT)</div>'+
-      '<input class="inp" id="newPrice" type="number" step="0.0001" placeholder="'+(buyP*1.005).toFixed(4)+'" style="margin-bottom:8px"/>'+
-      '<button class="btn-p" style="width:100%" onclick="doUpdatePrice()">Fiyatı Güncelle</button>'+
-      '<div id="prMsg"></div></div>'+
-      '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Fiyat Geçmişi</div>'+
-      makeChart()+
-      '<div style="overflow-x:auto;margin-top:11px"><table><thead><tr><th>Tarih</th><th>Alış</th><th>Satış</th><th></th></tr></thead><tbody>'+
-      (function() {
-        var rows = "";
-        var rev = state.prices.slice().reverse();
-        for (var i=0; i<rev.length; i++) {
-          var p = rev[i];
-          var realIdx = state.prices.length - 1 - i;
-          rows += '<tr>'+
-            '<td>'+h(p.date)+'</td>'+
-            '<td style="color:#00C896">$'+parseFloat(p.buy).toFixed(4)+'</td>'+
-            '<td style="color:#ff9f4a">$'+(parseFloat(p.buy)*(1-state.spread/100)).toFixed(4)+'</td>'+
-            '<td><button class="btn-s" style="padding:2px 7px;font-size:10px" onclick="delPrice('+realIdx+')">🗑</button></td>'+
-            '</tr>';
-        }
-        return rows;
-      })()+
-      '</tbody></table></div></div>';
-    }
-
-    else if (state.adminTab === "spread") {
-      pageHtml += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Spread %</div>'+
-      '<div style="font-size:12px;color:#3a5a8a;margin-bottom:12px">Mevcut: <span style="color:#00C896;font-weight:700">'+state.spread+'%</span></div>'+
-      '<div style="margin-bottom:10px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Yeni % (0-50)</div>'+
-      '<input class="inp" id="newSpread" type="number" step="0.1" min="0" max="50" value="'+state.spread+'" style="max-width:160px"/></div>'+
-      '<button class="btn-p" onclick="doSaveSpread()">Kaydet</button>'+
-      '<div id="spreadMsg"></div></div>';
-    }
-
-    else if (state.adminTab === "content") {
-      pageHtml += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Platform Kartları</div>';
-      for (var ci=0; ci<state.cards.length; ci++) {
-        var card = state.cards[ci];
-        pageHtml += '<div style="background:#060d1a;border-radius:9px;padding:11px;margin-bottom:8px">'+
-        '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'+
-        '<input class="inp" style="width:50px;flex-shrink:0" value="'+h(card.icon)+'" onchange="updateCard('+ci+',\'icon\',this.value)"/>'+
-        '<input class="inp" style="flex:1" value="'+h(card.title)+'" onchange="updateCard('+ci+',\'title\',this.value)"/>'+
-        '</div>'+
-        '<textarea class="inp" style="resize:vertical;min-height:50px" onchange="updateCard('+ci+',\'desc\',this.value)">'+h(card.desc)+'</textarea>'+
-        '</div>';
-      }
-      pageHtml += '<button class="btn-p" onclick="saveCards()">Kaydet</button><div id="cntMsg"></div></div>';
-    }
-
-    else if (state.adminTab === "users") {
-      pageHtml += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Kullanıcı Yönetimi</div>'+
-      '<div style="overflow-x:auto"><table><thead><tr><th>Kullanıcı</th><th>OPAY</th><th>USDT</th><th>İşlemler</th></tr></thead><tbody>';
-      var uKeys = Object.keys(state.users);
-      for (var ui=0; ui<uKeys.length; ui++) {
-        var uk = uKeys[ui];
-        var uv = state.users[uk];
-        pageHtml += '<tr>'+
-          '<td><div style="font-weight:600;font-size:12px">'+h(uv.name)+'</div><div style="font-size:10px;color:#3a5a8a">@'+h(uk)+(uv.isAdmin?" 🔑":"")+'</div></td>'+
-          '<td style="color:#00C896;font-size:12px">'+(uv.opay||0).toFixed(2)+'</td>'+
-          '<td style="font-size:12px">'+(uv.usdt||0).toFixed(2)+'</td>'+
-          '<td><div style="display:flex;gap:2px;flex-wrap:wrap">'+
-          '<button class="btn-p" style="padding:2px 6px;font-size:10px" onclick="adjBal(\''+uk+'\',\'addO\')">+OPAY</button>'+
-          '<button class="btn-s" style="padding:2px 6px;font-size:10px" onclick="adjBal(\''+uk+'\',\'remO\')">-OPAY</button>'+
-          '<button class="btn-p" style="padding:2px 6px;font-size:10px" onclick="adjBal(\''+uk+'\',\'addU\')">+USDT</button>'+
-          '<button class="btn-s" style="padding:2px 6px;font-size:10px" onclick="adjBal(\''+uk+'\',\'remU\')">-USDT</button>'+
-          '</div></td></tr>';
-      }
-      pageHtml += '</tbody></table></div></div>';
-    }
-
-    else if (state.adminTab === "cryptomus") {
-      pageHtml += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Cryptomus API</div>'+
-      '<div style="margin-bottom:10px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Merchant UUID</div><input class="inp" id="cmKeyInp" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value="'+h(state.cmKey)+'"/></div>'+
-      '<div style="margin-bottom:12px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Payment API Key</div><input class="inp" id="cmSecInp" type="password" value="'+h(state.cmSec)+'"/></div>'+
-      '<button class="btn-p" style="width:100%" onclick="saveCM()">Kaydet</button><div id="cmMsg"></div></div>';
-    }
-
-    else if (state.adminTab === "wallets") {
-      pageHtml += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Tüm İstekler</div>';
-      if (state.wtxs.length === 0) {
-        pageHtml += '<div style="text-align:center;color:#3a5a8a;padding:20px 0">İstek yok.</div>';
-      } else {
-        pageHtml += '<div style="overflow-x:auto"><table><thead><tr><th>Kullanıcı</th><th>Tür</th><th>USDT</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>';
-        for (var wi=0; wi<state.wtxs.length; wi++) {
-          var wtx2 = state.wtxs[wi];
-          var sc = wtx2.status==="done"?"#00C896":wtx2.status==="failed"?"#f04060":"#ff9f4a";
-          var sl2 = wtx2.status==="done"?"Tamamlandı":wtx2.status==="failed"?"Başarısız":"Bekliyor";
-          pageHtml += '<tr>'+
-            '<td style="font-size:10px;color:#3a5a8a">@'+h(wtx2.user)+'</td>'+
-            '<td style="color:'+(wtx2.type==="deposit"?"#00C896":"#f04060")+';font-size:12px">'+(wtx2.type==="deposit"?"⬇️":"⬆️")+'</td>'+
-            '<td style="color:#00C896;font-weight:600">'+parseFloat(wtx2.amt).toFixed(2)+'</td>'+
-            '<td><span style="font-size:10px;font-weight:600;color:'+sc+'">'+sl2+'</span></td>'+
-            '<td>'+(wtx2.status==="pending"?
-              '<div style="display:flex;gap:3px">'+
-              '<button class="btn-p" style="padding:2px 6px;font-size:10px" onclick="approveTx(\''+wtx2.id+'\')">Onayla</button>'+
-              '<button class="btn-s" style="padding:2px 6px;font-size:10px" onclick="rejectTx(\''+wtx2.id+'\')">Reddet</button>'+
-              '</div>':'<span style="font-size:10px;color:#3a5a8a">-</span>')+
-            '</td></tr>';
-        }
-        pageHtml += '</tbody></table></div>';
-      }
-      pageHtml += '</div>';
-    }
-  }
+  if (state.page === "dashboard") pageHtml = renderDashboard(buyP, sellP, spread, cur);
+  else if (state.page === "exchange") pageHtml = renderExchange(buyP, sellP, cur);
+  else if (state.page === "history") pageHtml = renderHistory();
+  else if (state.page === "wallet") pageHtml = renderWallet(cur);
+  else if (state.page === "admin" && isAdmin) pageHtml = renderAdmin(buyP, spread);
 
   app.innerHTML =
     '<div class="hdr">'+
     '<div style="display:flex;align-items:center;gap:7px;flex-shrink:0"><div class="logo-ico">OP</div><span style="font-weight:700;font-size:14px;color:#fff">OPAY TOKEN</span></div>'+
     '<div class="nav">'+navHtml+'</div>'+
     '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'+
-    '<span style="font-size:11px;color:#3a5a8a">'+h(cur.name)+'</span>'+
+    '<span style="font-size:11px;color:#3a5a8a">'+h(cur.fullName || cur.username)+'</span>'+
     '<button class="btn-g" style="padding:4px 9px;font-size:11px" onclick="doLogout()">Çıkış</button>'+
     '</div></div>'+
     '<div class="main">'+pageHtml+'</div>';
 }
 
-function setPage(p) { state.page = p; render(); }
-function toggleAuth() { state.authMode = state.authMode==="login"?"register":"login"; render(); }
-function setExMode(m) { state.exMode = m; render(); }
-function setWTab(t) { state.wTab = t; render(); }
-function setAdminTab(t) { state.adminTab = t; render(); }
-
-function showMsg(id, msg, ok) {
-  var el = document.getElementById(id);
-  if (el) { el.className = ok?"msg-ok":"msg-er"; el.textContent = msg; }
+// ── AUTH SCREEN ──
+function renderAuth(app) {
+  app.innerHTML = '<div class="hdr"><div style="display:flex;align-items:center;gap:7px"><div class="logo-ico">OP</div><span style="font-weight:700;font-size:14px;color:#fff">OPAY TOKEN</span></div></div>'+
+  '<div style="max-width:360px;margin:40px auto 0;padding:0 10px"><div class="card" style="padding:22px">'+
+  '<div style="text-align:center;margin-bottom:18px">'+
+  '<div class="logo-ico" style="width:44px;height:44px;font-size:17px;margin:0 auto 10px">OP</div>'+
+  '<div style="font-weight:700;font-size:17px;color:#fff">'+(state.authMode==="login"?"Hoş Geldiniz":"Hesap Oluşturun")+'</div>'+
+  '<div style="color:#3a5a8a;font-size:11px;margin-top:2px">OPAY TOKEN Platformu</div></div>'+
+  (state.authMode==="register"?
+    '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Ad Soyad</div><input class="inp" id="aName" placeholder="Ad Soyad"/></div>'+
+    '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Kullanıcı Adı</div><input class="inp" id="aUser" placeholder="kullanici_adi"/></div>'
+  : "") +
+  '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">'+(state.authMode==="login"?"E-posta veya Kullanıcı Adı":"E-posta")+'</div><input class="inp" id="aEmail" placeholder="email@example.com"/></div>'+
+  '<div style="margin-bottom:'+(state.authMode==="register"?"8":"13")+'px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Şifre</div><input class="inp" id="aPw" type="password" placeholder="........"/></div>'+
+  (state.authMode==="register"?'<div style="margin-bottom:13px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Şifre Tekrar</div><input class="inp" id="aCPw" type="password" placeholder="........"/></div>':"") +
+  '<div id="authMsg">'+(state.errAuth?'<div class="msg-er">'+h(state.errAuth)+'</div>':'')+'</div>'+
+  '<button class="btn-p" style="width:100%;margin-top:11px" '+(state.busy?"disabled":"")+' onclick="doAuth()">'+(state.busy?"Lütfen bekleyin...":(state.authMode==="login"?"Giriş Yap":"Hesap Oluştur"))+'</button>'+
+  '<div style="margin-top:11px;font-size:12px;color:#3a5a8a;text-align:center">'+
+  (state.authMode==="login"?"Hesabınız yok mu?":"Hesabınız var mı?")+
+  ' <span style="color:#00C896;cursor:pointer;font-weight:600" onclick="toggleAuth()">'+(state.authMode==="login"?"Üye olun":"Giriş yapın")+'</span></div>'+
+  '</div></div>';
 }
 
-function doAuth() {
-  var email = document.getElementById("aEmail") ? document.getElementById("aEmail").value.trim() : "";
-  var pw = document.getElementById("aPw") ? document.getElementById("aPw").value : "";
-  if (state.authMode === "login") {
-    var keys = Object.keys(state.users);
-    var found = null;
-    for (var i=0; i<keys.length; i++) {
-      var k = keys[i];
-      var v = state.users[k];
-      if ((k===email || v.email===email) && v.pw===pw) { found = k; break; }
-    }
-    if (!found) { showMsg("authMsg","E-posta veya şifre hatalı.",false); return; }
-    state.session = found; save(); setPage("dashboard");
+// ── DASHBOARD ──
+function renderDashboard(buyP, sellP, spread, cur) {
+  var opayVal = ((cur.opay||0)*sellP).toFixed(2);
+  var hist = state.priceHistory;
+  var prev = hist.length > 1 ? parseFloat(hist[hist.length-2].buy) : buyP;
+  var chg = prev ? (((buyP - prev) / prev) * 100).toFixed(2) : "0.00";
+  var isUp = parseFloat(chg) >= 0;
+  var cardsHtml = state.cards.length ? state.cards.map(function(c) {
+    return '<div style="flex:1;min-width:120px;background:#060d1a;border-radius:9px;padding:11px"><div style="font-size:19px;margin-bottom:4px">'+h(c.icon)+'</div><div style="font-weight:600;font-size:12px;margin-bottom:3px">'+h(c.title)+'</div><div style="font-size:11px;color:#3a5a8a">'+h(c.desc)+'</div></div>';
+  }).join("") : '<div class="spin">Yükleniyor...</div>';
+
+  return '<div class="row">'+
+  '<div class="stat"><div style="font-size:10px;color:#3a5a8a;font-weight:600;margin-bottom:3px">Alış Fiyatı</div><div style="font-size:19px;font-weight:700;color:#00C896">$'+buyP.toFixed(4)+'</div><div style="font-size:10px;color:'+(isUp?"#00C896":"#f04060")+'">'+(isUp?"▲":"▼")+Math.abs(chg)+'%</div></div>'+
+  '<div class="stat"><div style="font-size:10px;color:#3a5a8a;font-weight:600;margin-bottom:3px">Satış Fiyatı</div><div style="font-size:19px;font-weight:700;color:#ff9f4a">$'+sellP.toFixed(4)+'</div><div style="font-size:10px;color:#3a5a8a">Spread: '+spread+'%</div></div>'+
+  '<div class="stat"><div style="font-size:10px;color:#3a5a8a;font-weight:600;margin-bottom:3px">OPAY Bakiye</div><div style="font-size:19px;font-weight:700">'+(cur.opay||0).toFixed(2)+'</div><div style="font-size:10px;color:#00C896">$'+opayVal+'</div></div>'+
+  '<div class="stat"><div style="font-size:10px;color:#3a5a8a;font-weight:600;margin-bottom:3px">USDT Bakiye</div><div style="font-size:19px;font-weight:700">'+(cur.usdt||0).toFixed(2)+'</div></div>'+
+  '</div>'+
+  '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Fiyat Grafiği</div>'+makeChart()+'</div>'+
+  '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Platform Bilgisi</div>'+
+  '<div class="row" style="gap:8px">'+cardsHtml+'</div></div>';
+}
+
+// ── EXCHANGE ──
+function renderExchange(buyP, sellP, cur) {
+  return '<div style="max-width:440px;margin:0 auto"><div class="card">'+
+  '<div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Exchange</div>'+
+  '<div class="row" style="gap:8px;margin-bottom:12px">'+
+  '<div style="flex:1;background:#060d1a;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#3a5a8a;margin-bottom:2px">Alış</div><div style="font-weight:700;font-size:16px;color:#00C896">$'+buyP.toFixed(4)+'</div></div>'+
+  '<div style="flex:1;background:#060d1a;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#3a5a8a;margin-bottom:2px">Satış</div><div style="font-weight:700;font-size:16px;color:#ff9f4a">$'+sellP.toFixed(4)+'</div></div>'+
+  '</div>'+
+  '<div style="background:#060d1a;border-radius:8px;padding:10px;margin-bottom:11px;font-size:12px">'+
+  '<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:#3a5a8a">OPAY:</span><span style="font-weight:600">'+(cur.opay||0).toFixed(2)+'</span></div>'+
+  '<div style="display:flex;justify-content:space-between"><span style="color:#3a5a8a">USDT:</span><span style="font-weight:600">'+(cur.usdt||0).toFixed(2)+'</span></div>'+
+  '</div>'+
+  '<div style="display:flex;gap:3px;margin-bottom:11px;background:#060d1a;border-radius:8px;padding:3px">'+
+  '<button style="flex:1;padding:7px 0;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;background:'+(state.exMode==="buy"?"linear-gradient(135deg,#00C896,#0088cc)":"transparent")+';color:'+(state.exMode==="buy"?"#fff":"#3a5a8a")+'" onclick="setExMode(\'buy\')">▲ OPAY AL</button>'+
+  '<button style="flex:1;padding:7px 0;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;background:'+(state.exMode==="sell"?"linear-gradient(135deg,#f04060,#aa1133)":"transparent")+';color:'+(state.exMode==="sell"?"#fff":"#3a5a8a")+'" onclick="setExMode(\'sell\')">▼ OPAY SAT</button>'+
+  '</div>'+
+  '<div style="margin-bottom:10px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">'+(state.exMode==="buy"?"Almak istediğiniz OPAY":"Satmak istediğiniz OPAY")+'</div>'+
+  '<input class="inp" id="exAmt" type="number" min="0" placeholder="0.00" oninput="calcEx()"/></div>'+
+  '<div id="exPreview"></div>'+
+  '<button class="'+(state.exMode==="buy"?"btn-p":"btn-s")+'" style="width:100%" '+(state.busy?"disabled":"")+' onclick="doExchange()">'+(state.busy?"İşleniyor...":(state.exMode==="buy"?"✅ OPAY SATIN AL":"💱 OPAY SAT"))+'</button>'+
+  '<div id="exMsg"></div>'+
+  '</div></div>';
+}
+
+// ── HISTORY ──
+function renderHistory() {
+  var html = '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Alım Satım Geçmişi</div>';
+  if (!state.txsLoaded) {
+    html += '<div class="spin">Yükleniyor...</div>';
+  } else if (state.txs.length === 0) {
+    html += '<div style="text-align:center;color:#3a5a8a;padding:24px 0">Henüz işlem yok.</div>';
   } else {
-    var name = document.getElementById("aName") ? document.getElementById("aName").value.trim() : "";
-    var user = document.getElementById("aUser") ? document.getElementById("aUser").value.trim() : "";
-    var cpw = document.getElementById("aCPw") ? document.getElementById("aCPw").value : "";
-    if (!name||!user||!email||!pw||!cpw) { showMsg("authMsg","Tüm alanları doldurun.",false); return; }
-    if (pw !== cpw) { showMsg("authMsg","Şifreler eşleşmiyor.",false); return; }
-    if (state.users[user]) { showMsg("authMsg","Bu kullanıcı adı kayıtlı.",false); return; }
-    state.users[user] = {pw:pw,name:name,email:email,usdt:0,opay:0,isAdmin:false};
-    save();
-    showMsg("authMsg","Hesap oluşturuldu!",true);
-    setTimeout(function() { state.authMode="login"; render(); }, 1500);
+    html += '<div style="overflow-x:auto"><table><thead><tr><th>İşlem</th><th>Tarih</th><th>OPAY</th><th>USDT</th><th>Fiyat</th></tr></thead><tbody>';
+    for (var i=0; i<state.txs.length; i++) {
+      var tx = state.txs[i];
+      html += '<tr>'+
+        '<td><span style="display:inline-block;padding:2px 6px;border-radius:20px;font-size:10px;font-weight:600;background:'+(tx.type==="buy"?"#00C89615":"#f0406015")+';color:'+(tx.type==="buy"?"#00C896":"#f04060")+'">'+(tx.type==="buy"?"▲ ALIM":"▼ SATIM")+'</span></td>'+
+        '<td style="color:#3a5a8a;font-size:11px">'+h(tx.date)+'</td>'+
+        '<td>'+parseFloat(tx.opay).toFixed(2)+'</td>'+
+        '<td>'+parseFloat(tx.usdt).toFixed(4)+'</td>'+
+        '<td style="color:'+(tx.type==="buy"?"#00C896":"#ff9f4a")+'">$'+parseFloat(tx.price).toFixed(4)+'</td>'+
+        '</tr>';
+    }
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── WALLET ──
+function renderWallet(cur) {
+  var wTabs = [
+    {id:"deposit",label:"Para Yatır"},
+    {id:"withdraw",label:"Para Çek"},
+    {id:"history",label:"Geçmiş"}
+  ];
+  var html = '<div style="max-width:480px;margin:0 auto">'+
+  '<div style="display:flex;gap:3px;margin-bottom:12px;background:#0b1525;border-radius:9px;padding:3px">'+
+  wTabs.map(function(tp) {
+    return '<button style="flex:1;padding:6px 0;border:none;border-radius:6px;font-weight:600;font-size:11px;cursor:pointer;background:'+(state.wTab===tp.id?"linear-gradient(135deg,#00C896,#0088cc)":"transparent")+';color:'+(state.wTab===tp.id?"#fff":"#3a5a8a")+'" onclick="setWTab(\''+tp.id+'\')">'+h(tp.label)+'</button>';
+  }).join("")+'</div>';
+
+  if (state.wTab === "deposit") {
+    html += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">USDT Yatır</div>'+
+    '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Miktar (USDT)</div><input class="inp" id="depAmt" type="number" min="1" placeholder="10.00"/></div>'+
+    '<div class="row" style="gap:8px;margin-bottom:8px">'+
+    '<div style="flex:1"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Coin</div><select id="depCoin"><option>USDT</option><option>USDC</option><option>BTC</option><option>ETH</option><option>TRX</option></select></div>'+
+    '<div style="flex:1"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Ağ</div><select id="depNet"><option>TRON</option><option>ETH</option><option>BSC</option><option>SOL</option></select></div></div>'+
+    '<button class="btn-p" style="width:100%" '+(state.busy?"disabled":"")+' onclick="doDeposit()">'+(state.busy?"İşleniyor...":"Ödeme Oluştur")+'</button>'+
+    '<div id="depMsg"></div></div>';
+  } else if (state.wTab === "withdraw") {
+    html += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">USDT Çek</div>'+
+    '<div style="background:#060d1a;border-radius:7px;padding:10px;margin-bottom:10px;font-size:12px"><span style="color:#3a5a8a">USDT: </span><span style="color:#00C896;font-weight:700">'+(cur.usdt||0).toFixed(2)+'</span></div>'+
+    '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Miktar (min 10 USDT)</div><input class="inp" id="wdAmt" type="number" min="10" placeholder="10.00"/></div>'+
+    '<div style="margin-bottom:8px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Ağ</div><select id="wdNet"><option>TRON</option><option>ETH</option><option>BSC</option></select></div>'+
+    '<div style="margin-bottom:10px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Cüzdan Adresi</div><input class="inp" id="wdAddr" placeholder="T... / 0x..."/></div>'+
+    '<button class="btn-s" style="width:100%" '+(state.busy?"disabled":"")+' onclick="doWithdraw()">'+(state.busy?"İşleniyor...":"Çekim Talebi Gönder")+'</button>'+
+    '<div id="wdMsg"></div></div>';
+  } else {
+    html += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Geçmiş</div>';
+    if (!state.wtxsLoaded) {
+      html += '<div class="spin">Yükleniyor...</div>';
+    } else if (state.wtxs.length === 0) {
+      html += '<div style="text-align:center;color:#3a5a8a;padding:24px 0">Geçmiş yok.</div>';
+    } else {
+      html += '<div style="overflow-x:auto"><table><thead><tr><th>Tür</th><th>Tarih</th><th>USDT</th><th>Ağ</th><th>Durum</th></tr></thead><tbody>';
+      for (var j=0; j<state.wtxs.length; j++) {
+        var wtx = state.wtxs[j];
+        var stColor = wtx.status==="done"?"#00C896":wtx.status==="failed"?"#f04060":"#ff9f4a";
+        var stLabel = wtx.status==="done"?"Tamamlandı":wtx.status==="failed"?"Başarısız":"Bekliyor";
+        html += '<tr>'+
+          '<td style="color:'+(wtx.type==="deposit"?"#00C896":"#f04060")+';font-size:12px">'+(wtx.type==="deposit"?"⬇️":"⬆️")+'</td>'+
+          '<td style="color:#3a5a8a;font-size:10px">'+h(wtx.date)+'</td>'+
+          '<td style="color:#00C896;font-weight:600">'+parseFloat(wtx.amt).toFixed(2)+'</td>'+
+          '<td style="font-size:10px">'+h(wtx.net||"")+'</td>'+
+          '<td><span style="font-size:10px;font-weight:600;color:'+stColor+'">'+stLabel+'</span></td>'+
+          '</tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── ADMIN ──
+function renderAdmin(buyP, spread) {
+  var adminTabs = ["price","spread","content","users","cryptomus","wallets"];
+  var labels = {price:"📈 Fiyat",spread:"💱 Spread",content:"✏️ Kartlar",users:"👥 Kullanıcılar",cryptomus:"🔑 Cryptomus",wallets:"💳 İstekler"};
+  var html = '<div style="display:flex;gap:3px;margin-bottom:12px;flex-wrap:wrap">'+
+  adminTabs.map(function(tp) {
+    return '<button style="border:none;border-radius:6px;padding:5px 11px;font-size:11px;cursor:pointer;background:'+(state.adminTab===tp?"#00C89620":"transparent")+';color:'+(state.adminTab===tp?"#00C896":"#3a5a8a")+'" onclick="setAdminTab(\''+tp+'\')">'+labels[tp]+'</button>';
+  }).join("")+'</div>';
+
+  if (state.adminTab === "price") {
+    html += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Fiyat Yönetimi</div>'+
+    '<div style="font-size:12px;margin-bottom:6px;color:#3a5a8a">Mevcut alış: <span style="color:#00C896;font-weight:700">$'+buyP.toFixed(4)+'</span></div>'+
+    '<div style="font-size:11px;color:#3a5a8a;margin-bottom:4px">Yeni alış fiyatı (USDT)</div>'+
+    '<input class="inp" id="newPrice" type="number" step="0.0001" placeholder="'+(buyP*1.005).toFixed(4)+'" style="margin-bottom:8px"/>'+
+    '<button class="btn-p" style="width:100%" '+(state.busy?"disabled":"")+' onclick="doUpdatePrice()">'+(state.busy?"Kaydediliyor...":"Fiyatı Güncelle")+'</button>'+
+    '<div id="prMsg"></div></div>'+
+    '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Fiyat Geçmişi</div>'+
+    makeChart()+
+    '<div style="overflow-x:auto;margin-top:11px"><table><thead><tr><th>Tarih</th><th>Alış</th><th>Satış</th><th></th></tr></thead><tbody>';
+    if (!state.adminPricesLoaded) {
+      html += '<tr><td colspan="4" style="text-align:center;color:#3a5a8a">Yükleniyor...</td></tr>';
+    } else {
+      var rev = state.adminPrices.slice().reverse();
+      for (var i=0; i<rev.length; i++) {
+        var p = rev[i];
+        html += '<tr>'+
+          '<td>'+h(p.date)+'</td>'+
+          '<td style="color:#00C896">$'+parseFloat(p.buy).toFixed(4)+'</td>'+
+          '<td style="color:#ff9f4a">$'+(parseFloat(p.buy)*(1-spread/100)).toFixed(4)+'</td>'+
+          '<td><button class="btn-s" style="padding:2px 7px;font-size:10px" onclick="delPrice('+p.id+')">🗑</button></td>'+
+          '</tr>';
+      }
+    }
+    html += '</tbody></table></div></div>';
+  }
+
+  else if (state.adminTab === "spread") {
+    html += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Spread %</div>'+
+    '<div style="font-size:12px;color:#3a5a8a;margin-bottom:12px">Mevcut: <span style="color:#00C896;font-weight:700">'+spread+'%</span></div>'+
+    '<div style="margin-bottom:10px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Yeni % (0-50)</div>'+
+    '<input class="inp" id="newSpread" type="number" step="0.1" min="0" max="50" value="'+spread+'" style="max-width:160px"/></div>'+
+    '<button class="btn-p" '+(state.busy?"disabled":"")+' onclick="doSaveSpread()">'+(state.busy?"Kaydediliyor...":"Kaydet")+'</button>'+
+    '<div id="spreadMsg"></div></div>';
+  }
+
+  else if (state.adminTab === "content") {
+    html += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Platform Kartları</div>';
+    for (var ci=0; ci<state.cards.length; ci++) {
+      var card = state.cards[ci];
+      html += '<div style="background:#060d1a;border-radius:9px;padding:11px;margin-bottom:8px">'+
+      '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'+
+      '<input class="inp" style="width:50px;flex-shrink:0" value="'+h(card.icon)+'" onchange="updateCard('+ci+',\'icon\',this.value)"/>'+
+      '<input class="inp" style="flex:1" value="'+h(card.title)+'" onchange="updateCard('+ci+',\'title\',this.value)"/>'+
+      '</div>'+
+      '<textarea class="inp" style="resize:vertical;min-height:50px" onchange="updateCard('+ci+',\'desc\',this.value)">'+h(card.desc)+'</textarea>'+
+      '</div>';
+    }
+    html += '<button class="btn-p" '+(state.busy?"disabled":"")+' onclick="saveCards()">'+(state.busy?"Kaydediliyor...":"Kaydet")+'</button><div id="cntMsg"></div></div>';
+  }
+
+  else if (state.adminTab === "users") {
+    html += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Kullanıcı Yönetimi</div>';
+    if (!state.adminUsersLoaded) {
+      html += '<div class="spin">Yükleniyor...</div>';
+    } else {
+      html += '<div style="overflow-x:auto"><table><thead><tr><th>Kullanıcı</th><th>OPAY</th><th>USDT</th><th>İşlemler</th></tr></thead><tbody>';
+      for (var ui=0; ui<state.adminUsers.length; ui++) {
+        var uv = state.adminUsers[ui];
+        html += '<tr>'+
+          '<td><div style="font-weight:600;font-size:12px">'+h(uv.name)+'</div><div style="font-size:10px;color:#3a5a8a">@'+h(uv.username)+(uv.isAdmin?" 🔑":"")+'</div></td>'+
+          '<td style="color:#00C896;font-size:12px">'+(uv.opay||0).toFixed(2)+'</td>'+
+          '<td style="font-size:12px">'+(uv.usdt||0).toFixed(2)+'</td>'+
+          '<td><div style="display:flex;gap:2px;flex-wrap:wrap">'+
+          '<button class="btn-p" style="padding:2px 6px;font-size:10px" onclick="adjBal(\''+uv.id+'\',\'addO\')">+OPAY</button>'+
+          '<button class="btn-s" style="padding:2px 6px;font-size:10px" onclick="adjBal(\''+uv.id+'\',\'remO\')">-OPAY</button>'+
+          '<button class="btn-p" style="padding:2px 6px;font-size:10px" onclick="adjBal(\''+uv.id+'\',\'addU\')">+USDT</button>'+
+          '<button class="btn-s" style="padding:2px 6px;font-size:10px" onclick="adjBal(\''+uv.id+'\',\'remU\')">-USDT</button>'+
+          '</div></td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+  }
+
+  else if (state.adminTab === "cryptomus") {
+    html += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Cryptomus API</div>'+
+    '<div style="margin-bottom:10px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Merchant UUID</div><input class="inp" id="cmKeyInp" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"/></div>'+
+    '<div style="margin-bottom:12px"><div style="font-size:11px;color:#3a5a8a;margin-bottom:3px">Payment API Key</div><input class="inp" id="cmSecInp" type="password"/></div>'+
+    '<button class="btn-p" style="width:100%" '+(state.busy?"disabled":"")+' onclick="saveCM()">'+(state.busy?"Kaydediliyor...":"Kaydet")+'</button><div id="cmMsg"></div></div>';
+  }
+
+  else if (state.adminTab === "wallets") {
+    html += '<div class="card"><div style="font-size:10px;font-weight:700;color:#3a5a8a;text-transform:uppercase;margin-bottom:10px">Tüm İstekler</div>';
+    if (!state.adminWtxsLoaded) {
+      html += '<div class="spin">Yükleniyor...</div>';
+    } else if (state.adminWtxs.length === 0) {
+      html += '<div style="text-align:center;color:#3a5a8a;padding:20px 0">İstek yok.</div>';
+    } else {
+      html += '<div style="overflow-x:auto"><table><thead><tr><th>Kullanıcı</th><th>Tür</th><th>USDT</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>';
+      for (var wi=0; wi<state.adminWtxs.length; wi++) {
+        var wtx2 = state.adminWtxs[wi];
+        var sc = wtx2.status==="done"?"#00C896":wtx2.status==="failed"?"#f04060":"#ff9f4a";
+        var sl2 = wtx2.status==="done"?"Tamamlandı":wtx2.status==="failed"?"Başarısız":"Bekliyor";
+        html += '<tr>'+
+          '<td style="font-size:10px;color:#3a5a8a">@'+h(wtx2.user)+'</td>'+
+          '<td style="color:'+(wtx2.type==="deposit"?"#00C896":"#f04060")+';font-size:12px">'+(wtx2.type==="deposit"?"⬇️":"⬆️")+'</td>'+
+          '<td style="color:#00C896;font-weight:600">'+parseFloat(wtx2.amt).toFixed(2)+'</td>'+
+          '<td><span style="font-size:10px;font-weight:600;color:'+sc+'">'+sl2+'</span></td>'+
+          '<td>'+(wtx2.status==="pending"?
+            '<div style="display:flex;gap:3px">'+
+            '<button class="btn-p" style="padding:2px 6px;font-size:10px" onclick="approveTx(\''+wtx2.id+'\')">Onayla</button>'+
+            '<button class="btn-s" style="padding:2px 6px;font-size:10px" onclick="rejectTx(\''+wtx2.id+'\')">Reddet</button>'+
+            '</div>':'<span style="font-size:10px;color:#3a5a8a">-</span>')+
+          '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+  }
+
+  return html;
+}
+
+// ════════════════════════════════════════
+// ACTIONS
+// ════════════════════════════════════════
+function setPage(p) {
+  state.page = p;
+  render();
+  if (p === "history" && !state.txsLoaded) {
+    api("/api/transactions").then(function(t) { state.txs = t; state.txsLoaded = true; render(); }).catch(function(){});
+  }
+  if (p === "wallet" && state.wTab === "history" && !state.wtxsLoaded) {
+    loadWtxs();
+  }
+  if (p === "admin") {
+    if (state.adminTab === "users" && !state.adminUsersLoaded) loadAdminUsers();
+    if (state.adminTab === "price" && !state.adminPricesLoaded) loadAdminPrices();
+    if (state.adminTab === "wallets" && !state.adminWtxsLoaded) loadAdminWtxs();
   }
 }
 
-function doLogout() { state.session = null; save(); render(); }
+function toggleAuth() { state.authMode = state.authMode==="login"?"register":"login"; state.errAuth=""; render(); }
+function setExMode(m) { state.exMode = m; render(); }
+function setWTab(t) {
+  state.wTab = t;
+  render();
+  if (t === "history" && !state.wtxsLoaded) loadWtxs();
+}
+function setAdminTab(t) {
+  state.adminTab = t;
+  render();
+  if (t === "users" && !state.adminUsersLoaded) loadAdminUsers();
+  if (t === "price" && !state.adminPricesLoaded) loadAdminPrices();
+  if (t === "wallets" && !state.adminWtxsLoaded) loadAdminWtxs();
+}
 
+function showMsg(id, msg, ok) {
+  var el = document.getElementById(id);
+  if (el) el.innerHTML = '<div class="'+(ok?"msg-ok":"msg-er")+'">'+h(msg)+'</div>';
+}
+
+function loadWtxs() {
+  api("/api/wallet/history").then(function(w) { state.wtxs = w; state.wtxsLoaded = true; render(); }).catch(function(){});
+}
+function loadAdminUsers() {
+  api("/api/admin/users").then(function(u) { state.adminUsers = u; state.adminUsersLoaded = true; render(); }).catch(function(){});
+}
+function loadAdminPrices() {
+  api("/api/admin/prices").then(function(p) { state.adminPrices = p; state.adminPricesLoaded = true; render(); }).catch(function(){});
+}
+function loadAdminWtxs() {
+  api("/api/admin/wallet-requests").then(function(w) { state.adminWtxs = w; state.adminWtxsLoaded = true; render(); }).catch(function(){});
+}
+
+// ── AUTH ──
+function doAuth() {
+  state.errAuth = "";
+  var email = (document.getElementById("aEmail")||{}).value || "";
+  var pw = (document.getElementById("aPw")||{}).value || "";
+  email = email.trim();
+
+  if (state.authMode === "login") {
+    if (!email || !pw) { showMsg("authMsg","Tüm alanları doldurun.",false); return; }
+    state.busy = true; render();
+    api("/api/auth/login", "POST", { login: email, password: pw }).then(function() {
+      return refreshMe();
+    }).then(function() {
+      state.busy = false;
+      state.page = "dashboard";
+      render();
+      loadDashboardData();
+    }).catch(function(e) {
+      state.busy = false;
+      render();
+      showMsg("authMsg", e.message, false);
+    });
+  } else {
+    var name = (document.getElementById("aName")||{}).value.trim() || "";
+    var user = (document.getElementById("aUser")||{}).value.trim() || "";
+    var cpw = (document.getElementById("aCPw")||{}).value || "";
+    if (!name||!user||!email||!pw||!cpw) { showMsg("authMsg","Tüm alanları doldurun.",false); return; }
+    if (pw !== cpw) { showMsg("authMsg","Şifreler eşleşmiyor.",false); return; }
+    state.busy = true; render();
+    api("/api/auth/register", "POST", { username: user, email: email, password: pw, fullName: name }).then(function() {
+      state.busy = false;
+      state.authMode = "login";
+      render();
+      showMsg("authMsg","✅ Hesap oluşturuldu, şimdi giriş yapabilirsiniz.",true);
+    }).catch(function(e) {
+      state.busy = false;
+      render();
+      showMsg("authMsg", e.message, false);
+    });
+  }
+}
+
+function doLogout() {
+  api("/api/auth/logout", "POST").catch(function(){}).then(function() {
+    state = {
+      booting:false, cur:null, csrfToken:null, page:"dashboard", authMode:"login", adminTab:"price",
+      wTab:"deposit", exMode:"buy", priceInfo:null, priceHistory:[], cards:[],
+      txs:[], wtxs:[], adminUsers:[], adminPrices:[], adminWtxs:[], busy:false, errAuth:""
+    };
+    render();
+  });
+}
+
+// ── EXCHANGE ──
 function calcEx() {
   var el = document.getElementById("exAmt");
   var preview = document.getElementById("exPreview");
-  if (!el || !preview) return;
+  if (!el || !preview || !state.priceInfo) return;
   var amt = parseFloat(el.value);
-  var buyP = getBuyP();
-  var sellP = getSellP();
+  var buyP = state.priceInfo.buyPrice;
+  var sellP = state.priceInfo.sellPrice;
   if (!amt || amt <= 0) { preview.innerHTML = ""; return; }
   if (state.exMode === "buy") {
     preview.innerHTML = '<div style="background:#060d1a;border-radius:8px;padding:10px;margin-bottom:11px;font-size:12px">'+
@@ -487,78 +628,110 @@ function doExchange() {
   if (!el) return;
   var amt = parseFloat(el.value);
   if (!amt || amt <= 0) { showMsg("exMsg","Geçerli miktar girin.",false); return; }
-  var buyP = getBuyP();
-  var sellP = getSellP();
-  var u = state.users[state.session];
-  var newU = {pw:u.pw,name:u.name,email:u.email,usdt:u.usdt,opay:u.opay,isAdmin:u.isAdmin};
-  if (state.exMode === "buy") {
-    var cost = parseFloat((amt*buyP).toFixed(6));
-    if (cost > u.usdt) { showMsg("exMsg","Yetersiz USDT.",false); return; }
-    newU.usdt = parseFloat((u.usdt-cost).toFixed(6));
-    newU.opay = parseFloat((u.opay+amt).toFixed(6));
-    state.txs.unshift({id:Date.now(),user:state.session,type:"buy",opay:amt,usdt:cost,price:buyP,date:new Date().toISOString().slice(0,16).replace("T"," ")});
-    showMsg("exMsg","✅ "+amt.toFixed(2)+" OPAY aldınız ("+cost.toFixed(4)+" USDT)",true);
-  } else {
-    if (amt > u.opay) { showMsg("exMsg","Yetersiz OPAY.",false); return; }
-    var get = parseFloat((amt*sellP).toFixed(6));
-    if (get < 10) { showMsg("exMsg","Min satış 10 USDT.",false); return; }
-    newU.opay = parseFloat((u.opay-amt).toFixed(6));
-    newU.usdt = parseFloat((u.usdt+get).toFixed(6));
-    state.txs.unshift({id:Date.now(),user:state.session,type:"sell",opay:amt,usdt:get,price:sellP,date:new Date().toISOString().slice(0,16).replace("T"," ")});
-    showMsg("exMsg","✅ "+amt.toFixed(2)+" OPAY sattınız ("+get.toFixed(4)+" USDT)",true);
-  }
-  state.users[state.session] = newU;
-  save(); render();
+  state.busy = true; render();
+  api("/api/exchange", "POST", { type: state.exMode, amount: amt }).then(function(r) {
+    return refreshMe().then(function() { return r; });
+  }).then(function(r) {
+    state.busy = false;
+    state.txsLoaded = false;
+    render();
+    showMsg("exMsg", "✅ İşlem tamamlandı: "+r.opayAmount.toFixed(2)+" OPAY / "+r.usdtAmount.toFixed(4)+" USDT", true);
+  }).catch(function(e) {
+    state.busy = false;
+    render();
+    showMsg("exMsg", e.message, false);
+  });
 }
 
+// ── ADMIN: PRICE ──
 function doUpdatePrice() {
   var el = document.getElementById("newPrice");
   if (!el) return;
   var p = parseFloat(el.value);
-  var buyP = getBuyP();
-  if (!p || p <= buyP) { showMsg("prMsg","Daha yüksek fiyat girin.",false); return; }
-  state.prices.push({date:new Date().toISOString().slice(0,10),buy:p});
-  save(); showMsg("prMsg","✅ Fiyat güncellendi",true); render();
+  if (!p || p <= 0) { showMsg("prMsg","Geçerli fiyat girin.",false); return; }
+  state.busy = true; render();
+  api("/api/admin/price", "POST", { price: p }).then(function() {
+    state.busy = false;
+    state.adminPricesLoaded = false;
+    render();
+    showMsg("prMsg","✅ Fiyat güncellendi",true);
+    loadAdminPrices();
+    loadDashboardData();
+  }).catch(function(e) {
+    state.busy = false;
+    render();
+    showMsg("prMsg", e.message, false);
+  });
 }
 
-function delPrice(idx) {
-  state.prices = state.prices.filter(function(_,i) { return i !== idx; });
-  save(); render();
+function delPrice(id) {
+  api("/api/admin/price/" + id, "DELETE").then(function() {
+    loadAdminPrices();
+    loadDashboardData();
+  }).catch(function(){});
 }
 
+// ── ADMIN: SPREAD ──
 function doSaveSpread() {
   var el = document.getElementById("newSpread");
   if (!el) return;
   var s = parseFloat(el.value);
   if (isNaN(s) || s < 0 || s > 50) { showMsg("spreadMsg","0-50 arası girin.",false); return; }
-  state.spread = s; save(); showMsg("spreadMsg","✅ Kaydedildi.",true); render();
+  state.busy = true; render();
+  api("/api/admin/spread", "POST", { spread: s }).then(function() {
+    state.busy = false;
+    render();
+    showMsg("spreadMsg","✅ Kaydedildi.",true);
+    loadDashboardData();
+  }).catch(function(e) {
+    state.busy = false;
+    render();
+    showMsg("spreadMsg", e.message, false);
+  });
 }
 
+// ── ADMIN: CONTENT ──
 function updateCard(i, field, val) { state.cards[i][field] = val; }
-function saveCards() { save(); showMsg("cntMsg","✅ Kaydedildi.",true); render(); }
+function saveCards() {
+  state.busy = true; render();
+  api("/api/admin/cards", "POST", { cards: state.cards }).then(function() {
+    state.busy = false;
+    render();
+    showMsg("cntMsg","✅ Kaydedildi.",true);
+  }).catch(function(e) {
+    state.busy = false;
+    render();
+    showMsg("cntMsg", e.message, false);
+  });
+}
 
-function adjBal(user, type) {
-  var amt = parseFloat(prompt("@"+user+" için miktar:"));
+// ── ADMIN: USERS ──
+function adjBal(userId, type) {
+  var amt = parseFloat(prompt("Miktar girin:"));
   if (!amt || amt < 0) return;
-  var u = state.users[user];
-  var newU = {pw:u.pw,name:u.name,email:u.email,usdt:u.usdt,opay:u.opay,isAdmin:u.isAdmin};
-  if (type==="addO") newU.opay = parseFloat(((u.opay||0)+amt).toFixed(6));
-  else if (type==="remO") newU.opay = Math.max(0,parseFloat(((u.opay||0)-amt).toFixed(6)));
-  else if (type==="addU") newU.usdt = parseFloat(((u.usdt||0)+amt).toFixed(6));
-  else if (type==="remU") newU.usdt = Math.max(0,parseFloat(((u.usdt||0)-amt).toFixed(6)));
-  state.users[user] = newU; save(); render();
+  api("/api/admin/users/" + userId + "/balance", "POST", { type: type, amount: amt }).then(function() {
+    loadAdminUsers();
+  }).catch(function(e) { alert(e.message); });
 }
 
+// ── ADMIN: CRYPTOMUS ──
 function saveCM() {
-  var k = document.getElementById("cmKeyInp");
-  var s = document.getElementById("cmSecInp");
-  if (k) state.cmKey = k.value;
-  if (s) state.cmSec = s.value;
-  LS.set("op_cmk", state.cmKey);
-  LS.set("op_cms", state.cmSec);
-  showMsg("cmMsg","✅ Kaydedildi!",true);
+  var k = (document.getElementById("cmKeyInp")||{}).value || "";
+  var s = (document.getElementById("cmSecInp")||{}).value || "";
+  if (!k || !s) { showMsg("cmMsg","Her iki alanı da doldurun.",false); return; }
+  state.busy = true; render();
+  api("/api/admin/cryptomus", "POST", { merchant: k, secret: s }).then(function() {
+    state.busy = false;
+    render();
+    showMsg("cmMsg","✅ Kaydedildi!",true);
+  }).catch(function(e) {
+    state.busy = false;
+    render();
+    showMsg("cmMsg", e.message, false);
+  });
 }
 
+// ── WALLET: DEPOSIT / WITHDRAW ──
 function doDeposit() {
   var amtEl = document.getElementById("depAmt");
   var coinEl = document.getElementById("depCoin");
@@ -566,12 +739,23 @@ function doDeposit() {
   if (!amtEl) return;
   var amt = parseFloat(amtEl.value);
   if (!amt || amt <= 0) { showMsg("depMsg","Geçerli miktar girin.",false); return; }
-  if (!state.cmKey || !state.cmSec) { showMsg("depMsg","Cryptomus ayarlı değil.",false); return; }
   var coin = coinEl ? coinEl.value : "USDT";
   var net = netEl ? netEl.value : "TRON";
-  var oid = "DEP-"+Date.now()+"-"+state.session;
-  state.wtxs.unshift({id:oid,user:state.session,type:"deposit",amt:amt,coin:coin,net:net,status:"pending",date:new Date().toISOString().slice(0,16).replace("T"," ")});
-  save(); showMsg("depMsg","✅ Talep oluşturuldu. Admin onaylayacak.",true);
+  state.busy = true; render();
+  api("/api/wallet/deposit", "POST", { amount: amt, coin: coin, network: net }).then(function(r) {
+    state.busy = false;
+    render();
+    if (r.url) {
+      showMsg("depMsg","✅ Ödeme sayfası açılıyor...",true);
+      window.open(r.url, "_blank");
+    } else {
+      showMsg("depMsg","✅ Talep oluşturuldu.",true);
+    }
+  }).catch(function(e) {
+    state.busy = false;
+    render();
+    showMsg("depMsg", e.message, false);
+  });
 }
 
 function doWithdraw() {
@@ -584,51 +768,37 @@ function doWithdraw() {
   var net = netEl ? netEl.value : "TRON";
   if (!amt || amt < 10) { showMsg("wdMsg","Min çekim 10 USDT.",false); return; }
   if (!addr || addr.length < 10) { showMsg("wdMsg","Geçerli adres girin.",false); return; }
-  var u = state.users[state.session];
-  if (amt > (u.usdt||0)) { showMsg("wdMsg","Yetersiz USDT.",false); return; }
-  var newU = {pw:u.pw,name:u.name,email:u.email,usdt:parseFloat((u.usdt-amt).toFixed(6)),opay:u.opay,isAdmin:u.isAdmin};
-  state.users[state.session] = newU;
-  state.wtxs.unshift({id:"WD-"+Date.now(),user:state.session,type:"withdraw",amt:amt,addr:addr,net:net,status:"pending",date:new Date().toISOString().slice(0,16).replace("T"," ")});
-  save(); showMsg("wdMsg","✅ Talebiniz alındı.",true); render();
+  state.busy = true; render();
+  api("/api/wallet/withdraw", "POST", { amount: amt, network: net, address: addr }).then(function() {
+    return refreshMe();
+  }).then(function() {
+    state.busy = false;
+    state.wtxsLoaded = false;
+    render();
+    showMsg("wdMsg","✅ Talebiniz alındı.",true);
+  }).catch(function(e) {
+    state.busy = false;
+    render();
+    showMsg("wdMsg", e.message, false);
+  });
 }
 
+// ── ADMIN: WALLET REQUESTS ──
 function approveTx(id) {
-  for (var i=0; i<state.wtxs.length; i++) {
-    if (state.wtxs[i].id === id) {
-      var tx = state.wtxs[i];
-      state.wtxs[i] = {id:tx.id,user:tx.user,type:tx.type,amt:tx.amt,coin:tx.coin,net:tx.net,addr:tx.addr,status:"done",date:tx.date};
-      if (tx.type === "deposit") {
-        var u = state.users[tx.user];
-        if (u) {
-          var newU = {pw:u.pw,name:u.name,email:u.email,usdt:parseFloat(((u.usdt||0)+tx.amt).toFixed(6)),opay:u.opay,isAdmin:u.isAdmin};
-          state.users[tx.user] = newU;
-        }
-      }
-      break;
-    }
-  }
-  save(); render();
+  api("/api/admin/wallet-requests/" + id + "/approve", "POST").then(function() {
+    loadAdminWtxs();
+  }).catch(function(e) { alert(e.message); });
 }
-
 function rejectTx(id) {
-  for (var i=0; i<state.wtxs.length; i++) {
-    if (state.wtxs[i].id === id) {
-      var tx = state.wtxs[i];
-      state.wtxs[i] = {id:tx.id,user:tx.user,type:tx.type,amt:tx.amt,coin:tx.coin,net:tx.net,addr:tx.addr,status:"failed",date:tx.date};
-      if (tx.type === "withdraw") {
-        var u = state.users[tx.user];
-        if (u) {
-          var newU2 = {pw:u.pw,name:u.name,email:u.email,usdt:parseFloat(((u.usdt||0)+tx.amt).toFixed(6)),opay:u.opay,isAdmin:u.isAdmin};
-          state.users[tx.user] = newU2;
-        }
-      }
-      break;
-    }
-  }
-  save(); render();
+  api("/api/admin/wallet-requests/" + id + "/reject", "POST").then(function() {
+    loadAdminWtxs();
+  }).catch(function(e) { alert(e.message); });
 }
 
-render();
+// ════════════════════════════════════════
+// START
+// ════════════════════════════════════════
+boot();
 </script>
 </body>
 </html>
