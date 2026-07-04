@@ -94,7 +94,13 @@ function t(key) {
 
 function setLang(code) {
   state.lang = code;
+  state.langMenuOpen = false;
   localStorage.setItem("opay_lang", code);
+  render();
+}
+
+function toggleLangMenu() {
+  state.langMenuOpen = !state.langMenuOpen;
   render();
 }
 
@@ -154,6 +160,7 @@ var state = {
   cur: null,            // current user, from /api/auth/me
   csrfToken: null,       // in-memory only, never persisted
   lang: localStorage.getItem("opay_lang") || "en",
+  langMenuOpen: false,
   // Bearer token, kept in localStorage so it survives page refresh. This is
   // a deliberate trade-off: it's JS-readable (unlike an httpOnly cookie),
   // but it's the only reliable option now that cross-site cookies are
@@ -304,6 +311,7 @@ function render() {
     '<div style="display:flex;align-items:center;gap:7px;flex-shrink:0"><div class="logo-ico">OP</div><span style="font-weight:700;font-size:14px;color:#fff">OPAY TOKEN</span></div>'+
     '<div class="nav">'+navHtml+'</div>'+
     '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'+
+    renderLangPicker(true)+
     '<span style="font-size:11px;color:#3a5a8a">'+h(cur.fullName || cur.username)+'</span>'+
     '<button class="btn-g" style="padding:4px 9px;font-size:11px" onclick="doLogout()">'+t("logout")+'</button>'+
     '</div></div>'+
@@ -311,18 +319,33 @@ function render() {
 }
 
 // -- AUTH SCREEN --
-function renderLangPicker() {
-  return '<select id="langPicker" class="inp" style="margin-bottom:14px;text-align:center" onchange="setLang(this.value)">'+
-    LANGS.map(function(l) {
-      return '<option value="'+l.code+'" '+(state.lang===l.code?"selected":"")+'>'+l.flag+' '+h(l.name)+'</option>';
-    }).join("")+
-    '</select>';
+function renderLangPicker(compact) {
+  var cur = LANGS.filter(function(l) { return l.code === state.lang; })[0] || LANGS[0];
+  var btnStyle = compact
+    ? "background:#172340;border:none;border-radius:6px;padding:5px 8px;color:#fff;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px"
+    : "width:100%;background:#050c18;border:1px solid #172340;border-radius:7px;padding:8px 10px;color:#dde4f0;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:space-between";
+  var wrapStyle = compact ? "position:relative" : "position:relative;margin-bottom:14px";
+  var listStyle = "position:absolute;"+(compact?"right:0":"left:0;right:0")+";top:100%;margin-top:4px;background:#0b1525;border:1px solid #172340;border-radius:8px;max-height:260px;overflow-y:auto;z-index:200;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,0.4)";
+  var html = '<div style="'+wrapStyle+'">'+
+    '<button type="button" style="'+btnStyle+'" onclick="toggleLangMenu()">'+
+    '<span>'+cur.flag+' '+(compact?'':h(cur.name))+'</span><span style="font-size:9px;color:#3a5a8a">&#9662;</span>'+
+    '</button>';
+  if (state.langMenuOpen) {
+    html += '<div style="'+listStyle+'">'+
+      LANGS.map(function(l) {
+        return '<div onclick="setLang(\''+l.code+'\')" style="padding:8px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;background:'+(state.lang===l.code?"#172340":"transparent")+'" onmouseover="this.style.background=\'#172340\'" onmouseout="this.style.background=\''+(state.lang===l.code?"#172340":"transparent")+'\'">'+
+          '<span>'+l.flag+'</span><span>'+h(l.name)+'</span></div>';
+      }).join("")+
+      '</div>';
+  }
+  html += '</div>';
+  return html;
 }
 
 function renderAuth(app) {
   app.innerHTML = '<div class="hdr"><div style="display:flex;align-items:center;gap:7px"><div class="logo-ico">OP</div><span style="font-weight:700;font-size:14px;color:#fff">OPAY TOKEN</span></div></div>'+
   '<div style="max-width:360px;margin:40px auto 0;padding:0 10px"><div class="card" style="padding:22px">'+
-  renderLangPicker()+
+  renderLangPicker(false)+
   '<div style="text-align:center;margin-bottom:18px">'+
   '<div class="logo-ico" style="width:44px;height:44px;font-size:17px;margin:0 auto 10px">OP</div>'+
   '<div style="font-weight:700;font-size:17px;color:#fff">'+(state.authMode==="login"?t("welcomeLogin"):t("welcomeRegister"))+'</div>'+
@@ -707,10 +730,12 @@ function doAuth() {
 function doLogout() {
   api("/api/auth/logout", "POST").catch(function(){}).then(function() {
     localStorage.removeItem("opay_token");
+    var keepLang = state.lang;
     state = {
       booting:false, cur:null, csrfToken:null, token:null, page:"dashboard", authMode:"login", adminTab:"price",
       wTab:"deposit", exMode:"buy", priceInfo:null, priceHistory:[], cards:[],
-      txs:[], wtxs:[], adminUsers:[], adminPrices:[], adminWtxs:[], busy:false, errAuth:""
+      txs:[], wtxs:[], adminUsers:[], adminPrices:[], adminWtxs:[], busy:false, errAuth:"",
+      lang: keepLang, langMenuOpen: false
     };
     render();
   });
